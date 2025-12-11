@@ -3,8 +3,10 @@ Game payoff matrix definitions
 
 All values must be (converted to) float
 
-TODO: naming convention for n-players, m-actions, log, exp
-TODO: general linting
+Original design, not used anymore
+
+Extended by: Hanchen Wang
+Date: 2025-11
 '''
 
 import torch
@@ -37,7 +39,7 @@ stag_hunt_2player = torch.tensor(
      [3.0, 2.0]]      # T P
 )
 
-# Chicken game (row player payoffs)
+# Chicken game (row player payoffs) // Incorrect?
 chicken_2player = torch.tensor(
     [[2.0, 3.0],      # Dare, Chicken
      [4.0, 1.0]]      # Chicken, Dare

@@ -1,0 +1,9 @@
+game_id,Reward,Temptation,Sucker,Penalty,Tensor
+Prisoners,3.1,4,1,2,RSSSTTTP
+Harmony,4,2,2,1,RSSSTTTP
+Chicken,3,4,2,1,RSSSTPPP
+Coordination,4,2,1,3,RSSSTPPP
+Leader,2,4,3,1,RSSSTPPT
+StagHunt_green,4,3,1,2,RRRSTPPP
+StagHunt_red,4,3,1,2,RSSSTPPP
+StagHunt_penalty,4,3,1,2,RSSSPPPP

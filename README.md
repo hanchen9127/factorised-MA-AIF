@@ -7,6 +7,8 @@ Factorised Active Inference Agents for Strategic Multi-Agent Interactions
 
 > Ruiz-Serra, J., Sweeney, P., and Harré, M., 2025. Factorised Active Inference Agents for Strategic Multi-Agent Interactions. In _Proceedings of the 24th International Conference on Autonomous Agents and Multi-Agent Systems_ (AAMAS 2025), Detroit, USA, May 19-23, 2025. Association for Computing Machinery (ACM).
 
+extended by [Hanchen Wang](https://github.com/hanchen9127)
+
 ## Start here
 
 1. [`notebooks/`](https://github.com/RuizSerra/factorised-MA-AIF-notebooks) (separate repository with Jupyter notebooks)

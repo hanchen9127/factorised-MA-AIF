@@ -1,4 +1,10 @@
 h5py==3.11.0
 pytorch
 gitpython
-pandas
+pandas~=2.3.3
+torch~=2.9.1
+nashpy~=0.0.43
+numpy~=2.3.5
+scipy~=1.16.3
+matplotlib~=3.10.8
+tqdm~=4.67.1
