@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--num-repeats', type=int, default=4)
-    argparser.add_argument('--db-path', type=str, default='BMA_test.db')
+    argparser.add_argument('--db-path', type=str, default='BMA_red.db')
 
     args = argparser.parse_args()
 
@@ -48,27 +48,27 @@ if __name__ == '__main__':
                                      game_form="2x2",
                                      game_ids=["1_2_2_Chicken", "1_1_1_Prisoners", "1_2_2_Chicken"],
                                      game_to_change=[],
-                                     num_steps=[400, 200, 400],
+                                     num_steps=[800, 400, 800],
                                      num_changes=0),
-        generate_dynamic_transitions(dict_games=GAMES,
-                                     game_form="2x2",
-                                     game_ids=["1_2_2_Chicken", "3_6_6_Harmony", "1_2_2_Chicken"],
-                                     game_to_change=[],
-                                     num_steps=[400, 200, 400],
-                                     num_changes=0),
+        # generate_dynamic_transitions(dict_games=GAMES,
+        #                              game_form="2x2",
+        #                              game_ids=["1_2_2_Chicken", "3_6_6_Harmony", "1_2_2_Chicken"],
+        #                              game_to_change=[],
+        #                              num_steps=[400, 200, 400],
+        #                              num_changes=0),
         generate_dynamic_transitions(dict_games=GAMES,
                                      game_form="2x2",
                                      game_ids=["3_2_2_StagHunt", "1_1_1_Prisoners", "3_2_2_StagHunt"],
                                      game_to_change=[],
-                                     num_steps=[400, 200, 400],
+                                     num_steps=[800, 400, 800],
                                      num_changes=0),
-        generate_dynamic_transitions(dict_games=GAMES,
-                                     game_form="2x2",
-                                     game_ids=["3_2_2_StagHunt", "3_6_6_Harmony", "3_2_2_StagHunt"],
-                                     game_to_change=[],
-                                     num_steps=[400, 200, 400],
-                                     num_changes=0),
-
+        # generate_dynamic_transitions(dict_games=GAMES,
+        #                              game_form="2x2",
+        #                              game_ids=["3_2_2_StagHunt", "3_6_6_Harmony", "3_2_2_StagHunt"],
+        #                              game_to_change=[],
+        #                              num_steps=[400, 200, 400],
+        #                              num_changes=0),
+        #
         generate_dynamic_transitions(dict_games=GAMES,
                                      game_form="2x2",
                                      game_ids=[
@@ -79,7 +79,7 @@ if __name__ == '__main__':
                                          "1_2_2_Chicken"
                                      ],
                                      game_to_change=[],
-                                     num_steps=[500, 250, 1000, 250, 500],
+                                     num_steps=[500, 250, 500, 250, 500],
                                      num_changes=0
                                      )
     ]
@@ -105,6 +105,7 @@ if __name__ == '__main__':
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
+                    B_candidates=["Full", "Red"],  # ["Full", "TFT", "Grim", "Pavlov"]
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,

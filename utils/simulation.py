@@ -205,10 +205,9 @@ class IteratedGame:
                 'B',
                 'learn_record',
                 'o_pred_record',
-                'A_model_change',
-                'B_model_change',
+                'B_candidates',
+                'B_model_weights',
                 'delta_F',
-                'weight_full',
             ]
             ):
         '''

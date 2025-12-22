@@ -49,7 +49,10 @@ def load_timestamp_data(args, timestamp):
         db_path=args_copy.db_path,
         sql_query=f'SELECT * FROM timeseries WHERE timestamp LIKE "%{timestamp}%" AND commit_sha LIKE "%{commit_sha}%"'
     )
-    all_vfe, all_q_u, all_efe, all_B, all_q_s, all_delta_F = [], [], [], [], [], []
+    all_vfe, all_q_u, all_efe, all_B, all_q_s, \
+    all_delta_F, all_entropy, all_candidates, all_model_weights = (
+        [] for _ in range(9)
+    )
     for i in range(len(experiments)):
         loaded_vars = utils.database.load_single_timeseries(experiments, i)
         all_vfe.append(np.array(loaded_vars['VFE']))
@@ -58,6 +61,9 @@ def load_timestamp_data(args, timestamp):
         all_B.append(np.array(loaded_vars['B']))
         all_q_s.append(np.array(loaded_vars['q_s']))
         all_delta_F.append(np.array(loaded_vars['delta_F']))
+        all_entropy.append(np.array(loaded_vars['entropy']))
+        all_candidates.append(np.array(loaded_vars['B_candidates']))
+        all_model_weights.append(np.array(loaded_vars['B_model_weights']))
     return {
         'timestamp': timestamp,
         'game_transitions': pickle.loads(metadata.iloc[0]['game_transitions']),
@@ -68,6 +74,9 @@ def load_timestamp_data(args, timestamp):
         'all_B': np.stack(all_B),
         'all_q_s': np.stack(all_q_s),
         'all_delta_F': np.stack(all_delta_F),
+        'all_entropy': np.stack(all_entropy),
+        'all_candidates': np.stack(all_candidates),
+        'all_model_weights': np.stack(all_model_weights),
     }
 
 
@@ -186,6 +195,34 @@ def plot_all_games_ensemble_for_all_files(filenames, base_dir="BMR-Study", outpu
 
     # Define which plots we want
     plot_configs = [
+        {
+            'name': 'Ensemble — Entropy',
+            'plot_fn': utils.plotting.plot_entropy_ensemble,
+            'get_args': lambda data, ifLegend: (
+                data['all_entropy'],
+                ifLegend
+            )
+        },
+        {
+            'name': 'Single — Agent i Model weights (Ego)',
+            'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
+            'get_args': lambda data, ifLegend: (
+                data['all_model_weights'],
+                data['all_candidates'],
+                0,
+                ifLegend
+            )
+        },
+        {
+            'name': 'Single — Agent j Model weights (Ego)',
+            'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
+            'get_args': lambda data, ifLegend: (
+                data['all_model_weights'],
+                data['all_candidates'],
+                1,
+                ifLegend
+            )
+        },
         {
             'name': 'Ensemble — VFE',
             'plot_fn': utils.plotting.plot_vfe_ensemble,
@@ -341,7 +378,8 @@ def generate_plots(timestamp, args):
 
 if __name__ == '__main__':
     # Manage all BMR files here
-    bmr_methods = ["NoBMR", "Baseline_0.5", "Epsilon_0.25"]
+    # bmr_methods = ["NoBMR", "Baseline_0.5", "Epsilon_0.25"]
+    bmr_methods = ["BMA_all", "BMA_red", "BMA_pure"]
 
     # Select the focused one
     selected_bmr = bmr_methods[-1]
@@ -381,7 +419,7 @@ if __name__ == '__main__':
 
     # Generate combined ensemble figure for .db files
     plot_all_games_ensemble_for_all_files(bmr_methods)
-    plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
+    # plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
 
     # Parallel generation for individual experiments
     # with Pool(processes=4) as pool:

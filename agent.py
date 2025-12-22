@@ -63,8 +63,9 @@ class Agent:
             # threshold: float = 0.25,
             A_BMR: Union[str, None] = 'identity',
             B_BMR: Union[str, None] = 'epsilon',
-            alpha_r:float = 0.25,
-            gamma_r:float = 1,
+            alpha_r: float = 0.25,
+            gamma_r: float = 1,
+            B_candidates=["Full"]
     ):
         """Initialise an agent with the following parameters
 
@@ -173,10 +174,12 @@ class Agent:
         self.policy_length = policy_length  # Length of the policy (number of actions to consider)
         # Learning
         self.learn_record = 0  # Store step indices where learning happened (0 if not a learning step)
-        self.A_model_change = torch.zeros(self.num_agents,
-                                          dtype=torch.float)  # Track the per-factor change of observation model
-        self.B_model_change = torch.zeros((self.num_agents, self.num_actions),
-                                          dtype=torch.float)  # Track the per-factor * per-action change of transition model
+        # self.A_model_change = torch.zeros(self.num_agents,
+        #                                   dtype=torch.float,
+        #                                   device=self.B_params.device)  # Track the per-factor change of observation model
+        # self.B_model_change = torch.zeros(self.num_agents,
+        #                                   dtype=torch.float,
+        #                                   device=self.B_params.device)  # Track the per-factor change of transition model
         self.learn_every_t_steps = learn_every_t_steps  # Learn every t steps
         self.learning_offset = learning_offset  # Random offset for learning
         self.current_random_offset_learning = random.randint(-self.learning_offset,
@@ -190,21 +193,25 @@ class Agent:
         # self.decay = decay  # Forgetting rate for learning
         self.alpha_r = alpha_r  # Strength parameter for BMR
         self.gamma_r = gamma_r  # Softmax strength for BMA
-        self.delta_F = torch.zeros((self.num_agents, self.num_actions),
+        self.B_candidates = B_candidates
+        self.delta_F = torch.zeros(self.num_agents, len(B_candidates),  # num of B models in BMA
                                    dtype=torch.float32,
                                    device=self.B_params.device)  # log p(y|M_red) - log p(y|M_full)
+        self.B_model_weights = torch.zeros(self.num_agents, len(B_candidates),  # num of B models in BMA
+                                           dtype=torch.float32, device=self.B_params.device)
+
         self.delta_F_A = torch.zeros(self.num_agents,
-                                   dtype=torch.float32,
-                                   device=self.A_params.device)  # log p(y|M_red) - log p(y|M_full)
-        self.F_red = torch.zeros((self.num_agents, self.num_actions),
-                                 dtype=torch.float32,
-                                 device=self.B_params.device)  # F(M_red) ≈ log p(y|M_red)
-        self.F_full = torch.zeros((self.num_agents, self.num_actions),
-                                  dtype=torch.float32,
-                                  device=self.B_params.device)  # F(M_full) ≈ log p(y|M_full)
-        self.weight_full = torch.zeros((self.num_agents, self.num_actions),
-                                       dtype=torch.float32,
-                                       device=self.B_params.device)  # Weight for full model
+                                     dtype=torch.float32,
+                                     device=self.A_params.device)  # log p(y|M_red) - log p(y|M_full)
+        # self.F_red = torch.zeros((self.num_agents, self.num_actions),
+        #                          dtype=torch.float32,
+        #                          device=self.B_params.device)  # F(M_red) ≈ log p(y|M_red)
+        # self.F_full = torch.zeros((self.num_agents, self.num_actions),
+        #                           dtype=torch.float32,
+        #                           device=self.B_params.device)  # F(M_full) ≈ log p(y|M_full)
+        # self.weight_full = torch.zeros((self.num_agents, self.num_actions),
+        #                                dtype=torch.float32,
+        #                                device=self.B_params.device)  # Weight for full model
         # self.pruning_method = pruning_method  # Define the type to prune the full model (softmax / epsilon)
 
         # Store blanket states history for learning ----------------------------
@@ -750,7 +757,6 @@ class Agent:
         # Bayesian Model Reduction ---------------------------------------------
         if self.A_BMR:
             for factor_idx in range(self.num_agents):
-
                 # Compute reduced posterior (BMR identity)
                 a_prior = self.A_params[factor_idx].flatten()
                 a_post_full = A_posterior_params[factor_idx].flatten()
@@ -781,7 +787,7 @@ class Agent:
                     for a_red_i in a_red_candidates
                 ])
                 assert delta_F_vector[0].abs() < 1e-4, f"Delta F for full model ({delta_F_vector[0]}) should be zero."
-                delta_E = 0  #torch.log(prior_red[factor_idx, action_idx] / prior_full[factor_idx, action_idx])
+                delta_E = 0  # torch.log(prior_red[factor_idx, action_idx] / prior_full[factor_idx, action_idx])
 
                 # Compute weight for two models, Can be derived from:
                 # Bayes' Theorem / Friston et al. (2016, Active Inference and learning, Equation 1.e)
@@ -809,7 +815,7 @@ class Agent:
 
                 # BMA: Weighted average of concentration params
                 self.A_params[factor_idx] = (
-                    weight_vector @ a_post_candidates
+                        weight_vector @ a_post_candidates
                 ).view_as(self.A_params[factor_idx])
 
         else:
@@ -849,70 +855,73 @@ class Agent:
         # Bayesian Model Reduction ---------------------------------------------
         if self.B_BMR:
             for factor_idx in range(self.num_agents):
-                for action_idx in range(self.num_actions):
-                    # for current_state in range(self.num_actions):
+                # Compute reduced posterior (BMR identity)
+                a_prior = self.B_params[factor_idx].flatten()
+                a_post_full = B_posterior_params[factor_idx].flatten()
 
-                    # Compute reduced posterior (BMR identity)
-                    a_prior = self.B_params[factor_idx, action_idx].flatten()
-                    a_post_full = B_posterior_params[factor_idx, action_idx].flatten()
+                # Choose method to produce candidate reduced model
+                a_red = make_reduced_prior(
+                    a_prior,
+                    method=self.B_BMR,  # "epsilon" or "softmax"
+                    alpha=self.alpha_r,
+                    preserve_total=False
+                )
 
-                    # Choose method to produce candidate reduced model
-                    a_red = make_reduced_prior(
-                        a_prior,
-                        method=self.B_BMR,  # "epsilon" or "softmax"
-                        alpha=self.alpha_r,
-                        preserve_total=False
-                    )
-                    # print(a_prior, a_red)
-                    a_red_candidates = [
-                        a_prior,  # First candidate is always the full model
-                        a_red,    # Reduced model (via pruning or sharpening as per Jason's thesis)
-                        # Other candidates can be added here:
-                        # torch.ones_like(a_prior) * a_prior.mean(),  # Uniform model
-                        # torch.tensor([1., 0., 0., 1.]) + EPSILON,
-                        # torch.tensor([0., 1., 1., 0.]) + EPSILON,
-                        # torch.tensor([1., 1., 0., 0.]) + EPSILON,
-                        # torch.tensor([1., 0., 1., 0.]) + EPSILON,
-                        # torch.tensor([0., 0., 1., 1.]) + EPSILON,
+                a_red_candidates = [
+                    a_prior,  # First candidate is always the full model
+                    *[
+                        candidate
+                        for name, candidate in [
+                            ("Red", a_red),  # Reduced model (via pruning or sharpening as per Jason's thesis),
+                            ("TFT", torch.tensor([[[0.99, 0.99],
+                                                   [0.01, 0.01]],
+                                                  [[0.01, 0.01],
+                                                   [0.99, 0.99]]]).flatten()),
+                            ("Grim", torch.tensor([[[0.99, 0.99],
+                                                    [0.01, 0.01]],
+                                                   [[0.01, 0.01],
+                                                    [0.99, 0.99]]]).flatten()),
+                            ("Pavlov", torch.tensor([[[0.99, 0.01],
+                                                      [0.01, 0.99]],
+                                                     [[0.01, 0.99],
+                                                      [0.99, 0.01]]]).flatten()),
+                        ]
+                        if name in self.B_candidates
                     ]
+                    # Other candidates can be added here:
+                    # torch.ones_like(a_prior) * a_prior.mean(),  # Uniform model
+                    # torch.tensor([1., 0., 0., 1.]) + EPSILON,
+                    # torch.tensor([0., 1., 1., 0.]) + EPSILON,
+                    # torch.tensor([1., 1., 0., 0.]) + EPSILON,
+                    # torch.tensor([1., 0., 1., 0.]) + EPSILON,
+                    # torch.tensor([0., 0., 1., 1.]) + EPSILON,
+                ]
 
-                    # Compute difference in log evidence F(M_red) - F(M_full)
-                    # Friston et al. (2016, Bayesian model reduction, Equation 12)
-                    delta_F_vector = torch.tensor([
-                        delta_free_energy(a_post_full, a_prior, a_red_i)
-                        for a_red_i in a_red_candidates
-                    ])
-                    assert delta_F_vector[0].abs() < 1e-4, f"Delta F for full model ({delta_F_vector[0]}) should be zero."
-                    delta_E = 0  #torch.log(prior_red[factor_idx, action_idx] / prior_full[factor_idx, action_idx])
+                # Compute difference in log evidence F(M_red) - F(M_full)
+                # Friston et al. (2016, Bayesian model reduction, Equation 12)
+                delta_F_vector = torch.tensor([
+                    delta_free_energy(a_post_full, a_prior, a_red_i)
+                    for a_red_i in a_red_candidates
+                ])
 
-                    # Compute weight for two models, Can be derived from:
-                    # Bayes' Theorem / Friston et al. (2016, Active Inference and learning, Equation 1.e)
-                    # weight_full = torch.sigmoid(-(self.gamma_r * delta_F + delta_E))
-                    # weight_red = 1 - weight_full
-                    weight_vector = torch.softmax(self.gamma_r * delta_F_vector, dim=0)
-                    a_post_candidates = torch.stack([
-                        (a_post_full + a_red_i - a_prior).clamp_min(EPSILON)
-                        for a_red_i in a_red_candidates
-                    ], dim=0)
+                assert delta_F_vector[0].abs() < 1e-3, f"Delta F for full model ({delta_F_vector[0]}) should be zero."
+                delta_E = 0  # torch.log(prior_red[factor_idx, action_idx] / prior_full[factor_idx, action_idx])
 
-                    # assert torch.isclose(weight_full + weight_red, torch.tensor(1.0), atol=TOLERANCE), (
-                    #     "The weights of full and reduced model should sum to 1!")
+                # Compute weight for models
+                weight_vector = torch.softmax(self.gamma_r * delta_F_vector, dim=0)
+                a_post_candidates = torch.stack([
+                    (a_post_full + a_red_i - a_prior).clamp_min(EPSILON)
+                    for a_red_i in a_red_candidates
+                ], dim=0)
 
-                    # Track updates
-                    # self.B_model_change[factor_idx, action_idx] = weight_red.detach().item()
-                    self.delta_F[factor_idx, action_idx] = delta_F_vector[1].detach().item()
-                    # self.F_full[factor_idx, action_idx] = F_full.detach().item()
-                    # self.F_red[factor_idx, action_idx] = F_red.detach().item()
-                    # self.weight_full[factor_idx, action_idx] = weight_full.detach().item()
-                    # print("Weight_red:", self.B_model_change[factor_idx, action_idx],
-                    #       "\tDeltaF:", delta_F, "=", F_red, "-", F_full,
-                    #       )
-                    # print(factor_idx, action_idx, self.delta_F[factor_idx, action_idx])
+                # Track updates
+                self.delta_F[factor_idx, :] = delta_F_vector.detach()
+                self.B_model_weights[factor_idx, :] = weight_vector.detach()
 
-                    # BMA: Weighted average of concentration params
-                    self.B_params[factor_idx, action_idx] = (
+                # BMA: Weighted average of concentration params
+                self.B_params[factor_idx] = (
                         weight_vector @ a_post_candidates
-                    ).view_as(self.B_params[factor_idx, action_idx])
+                ).view_as(self.B_params[factor_idx])
 
         else:
             self.B_params = B_posterior_params
@@ -995,7 +1004,7 @@ def make_reduced_prior(
         a_red = torch.ones_like(a_prior)
 
     elif method == "identity":
-        a_red = torch.eye(a_prior.shape[0]//2).view_as(a_prior)
+        a_red = torch.eye(a_prior.shape[0] // 2).view_as(a_prior)
 
     else:
         raise ValueError(f"Unknown method: {method}. Use 'epsilon' or 'softmax'.")
@@ -1043,8 +1052,8 @@ def delta_free_energy(a_posterior, a_prior, a_reduced):
 
     # Difference
     delta_F = (
-        (log_MBF(a_comb) - log_MBF(a_reduced))
-        - (log_MBF(a_post) - log_MBF(a_prior))
+            (log_MBF(a_comb) - log_MBF(a_reduced))
+            - (log_MBF(a_post) - log_MBF(a_prior))
     )
 
     return delta_F

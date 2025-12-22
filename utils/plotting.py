@@ -1586,7 +1586,7 @@ def plot_B_overtime(B_history, state, ax, i, t_min=0, t_max=None):
 def plot_vfe_ensemble(vfe_history, game_transitions,
                       ifLegend=True, ax=None):
     num_seeds = vfe_history.shape[0]
-    print(vfe_history.shape) # (4 Seed, 1000 Time, 2 agents, 2 actions)
+    # print(vfe_history.shape) # (4 Seed, 1000 Time, 2 agents, 2 actions)
     for s in range(num_seeds):
         summed_vfe = vfe_history[s].sum(axis=(1, 2))
         ax.plot(summed_vfe, color="blue", alpha=0.1, linewidth=LINEWIDTH, label="Individuals" if s == 0 else None)
@@ -1612,7 +1612,7 @@ def plot_policies_ensemble(q_u_history, game_transitions, nash_strategy,
 
     if single:
         # --- Single-seed mode ---
-        s = 9  # only use ONE seed
+        s = 0  # only use ONE seed
         for a in range(num_agents):
             ax.plot(
                 q_u_history[s, :, a, 0],
@@ -1898,6 +1898,75 @@ def plot_delta_F_ensemble(delta_F_history, game_transitions,
 
     if ifLegend:
         ax.legend(loc='upper right', fontsize=label_font_size)
+
+
+def plot_entropy_ensemble(entropy_history,
+                          ifLegend=True, ax=None):
+    num_seeds, T, num_agents, num_factors = entropy_history.shape  # (4 seeds, 1000 steps, 2 agents, 2 factors)
+    linestyles = ['-', '--']
+
+    for s in range(num_seeds):  # 对每个seed
+        alpha = 0.3 if num_seeds > 1 else 1.0  # 多seed时用低透明度表示个体轨迹
+        for a in range(num_agents):  # 每个代理
+            for f in range(num_factors):  # 每个因子（通常是自己和对手）
+                if f == 1:
+                    continue
+                label = f'Agent {a} Ego' if s == 0 else None  # 只在第一个seed显示图例，避免重复
+                ax.plot(range(T),
+                        entropy_history[s, :, a, f],
+                        color=ENTROPY_COLOR if a == 0 else "red",
+                        alpha=alpha,
+                        linewidth=LINEWIDTH,
+                        linestyle=linestyles[a],
+                        label=label)
+
+    ax.set_xlabel('Time step (t)', fontsize=label_font_size)
+    ax.set_ylabel('Entropy (Nats)', fontsize=label_font_size)
+    ax.tick_params(axis='both', which='major', labelsize=label_font_size)
+    ax.grid(True, alpha=0.3)
+
+    if ifLegend:
+        ax.legend(loc='upper right', fontsize=label_font_size)
+
+
+def plot_B_model_weights_ensemble(weights_history, candidates, agent_idx,
+                                  ifLegend=True,
+                                  ax=None):
+    num_seeds, T, num_agents, num_factors, num_models = weights_history.shape
+    print(candidates.shape)
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 4))
+
+    # fix first seed, agent 0, factor 0
+    s, a, f = 0, agent_idx, 0
+    model_names = candidates[s][0][a]
+
+    stack_data = weights_history[s, :, a, f, :].T  # (num_models, T)
+
+    if ifLegend:
+        ax.stackplot(
+            range(T),
+            stack_data,
+            labels=model_names,
+            alpha=0.5
+        )
+    else:
+        ax.stackplot(
+            range(T),
+            stack_data,
+            alpha=0.5
+        )
+
+    ax.set_xlabel('Time step (t)', fontsize=label_font_size)
+    ax.set_ylabel('Model weights', fontsize=label_font_size)
+    ax.set_ylim([0 - MARGIN, 1 + MARGIN])
+    ax.grid(True, alpha=0.3)
+
+    if ifLegend:
+        ax.legend(loc='lower right', fontsize=label_font_size / 2)
+
+    return ax
 
 
 def plot_state_space_trajectory(
