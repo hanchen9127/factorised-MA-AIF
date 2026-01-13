@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--num-repeats', type=int, default=4)
-    argparser.add_argument('--db-path', type=str, default='BMA_red.db')
+    argparser.add_argument('--db-path', type=str, default='dummy_test.db')
 
     args = argparser.parse_args()
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
                                      game_form="2x2",
                                      game_ids=["1_2_2_Chicken", "1_1_1_Prisoners", "1_2_2_Chicken"],
                                      game_to_change=[],
-                                     num_steps=[800, 400, 800],
+                                     num_steps=[400, 200, 400],
                                      num_changes=0),
         # generate_dynamic_transitions(dict_games=GAMES,
         #                              game_form="2x2",
@@ -60,7 +60,7 @@ if __name__ == '__main__':
                                      game_form="2x2",
                                      game_ids=["3_2_2_StagHunt", "1_1_1_Prisoners", "3_2_2_StagHunt"],
                                      game_to_change=[],
-                                     num_steps=[800, 400, 800],
+                                     num_steps=[400, 200, 400],
                                      num_changes=0),
         # generate_dynamic_transitions(dict_games=GAMES,
         #                              game_form="2x2",
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates=["Full", "Red"],  # ["Full", "TFT", "Grim", "Pavlov"]
+                    B_candidates="Full",  # "Full TFT Grim Pavlov"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
@@ -113,6 +113,10 @@ if __name__ == '__main__':
                     # D_prior=[torch.tensor([0.4, 0.6]), torch.tensor([0.6, 0.4])],  # Prior beliefs about hidden states
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
                 ),
+                dict(
+                    strategy="TFT",  # "TFT" or "Grim" or "Pavlov"
+                    num_actions=2,  # Limited to cooperate and defect
+                )
             ]
         ]
 

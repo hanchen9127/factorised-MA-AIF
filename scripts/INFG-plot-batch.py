@@ -5,7 +5,7 @@ Original Author: Jaime Ruiz Serra
 Date: 2024-09-23
 
 Extended by: Hanchen Wang
-Date: 2025-11
+Date: 2026-01
 '''
 
 import argparse
@@ -32,12 +32,13 @@ utils.plotting.SHOW_LEGEND = False
 utils.plotting.ONLY_LEFT_Y_LABEL = True
 utils.plotting.TIGHT_LAYOUT = True
 
-
 def load_timestamp_data(args, timestamp):
     """Load data for a single timestamp, optimized for parallel execution."""
-    args_copy = argparse.Namespace(**vars(args))  # Copy args to avoid shared state
+    args_copy = argparse.Namespace(**vars(args))  # 避免共享状态
     args_copy.timestamp = timestamp
     logging.info(f'Loading data for timestamp {timestamp}')
+
+    # 1. Read metadata
     metadata = utils.database.retrieve_timeseries_matching(
         db_path=args_copy.db_path,
         sql_query=f'SELECT * FROM metadata WHERE timestamp LIKE "%{timestamp}%"'
@@ -45,38 +46,47 @@ def load_timestamp_data(args, timestamp):
     if len(metadata) == 0:
         return None
     commit_sha = metadata.iloc[0]['commit_sha']
+
+    # 2. Read timeseries
     experiments = utils.database.retrieve_timeseries_matching(
         db_path=args_copy.db_path,
-        sql_query=f'SELECT * FROM timeseries WHERE timestamp LIKE "%{timestamp}%" AND commit_sha LIKE "%{commit_sha}%"'
+        sql_query=f'SELECT * FROM timeseries WHERE timestamp LIKE "%{timestamp}%" '
+                  f'AND commit_sha LIKE "%{commit_sha}%"'
     )
+
+    # 3. Empty containers
     all_vfe, all_q_u, all_efe, all_B, all_q_s, \
     all_delta_F, all_entropy, all_candidates, all_model_weights = (
         [] for _ in range(9)
     )
+
+    # 4. 逐条实验反序列化（不再 np.array / np.stack）
     for i in range(len(experiments)):
         loaded_vars = utils.database.load_single_timeseries(experiments, i)
-        all_vfe.append(np.array(loaded_vars['VFE']))
-        all_q_u.append(np.array(loaded_vars['q_u']))
-        all_efe.append(np.array(loaded_vars['EFE']))
-        all_B.append(np.array(loaded_vars['B']))
-        all_q_s.append(np.array(loaded_vars['q_s']))
-        all_delta_F.append(np.array(loaded_vars['delta_F']))
-        all_entropy.append(np.array(loaded_vars['entropy']))
-        all_candidates.append(np.array(loaded_vars['B_candidates']))
-        all_model_weights.append(np.array(loaded_vars['B_model_weights']))
+        all_vfe.append(loaded_vars['VFE'])
+        all_q_u.append(loaded_vars['q_u'])
+        all_efe.append(loaded_vars['EFE'])
+        all_B.append(loaded_vars['B'])
+        all_q_s.append(loaded_vars['q_s'])
+        all_delta_F.append(loaded_vars['delta_F'])
+        all_entropy.append(loaded_vars['entropy'])
+        all_candidates.append(loaded_vars['B_candidates'])
+        all_model_weights.append(loaded_vars['B_model_weights'])
+
+    # 5. 组装返回（纯 Python 结构）
     return {
         'timestamp': timestamp,
         'game_transitions': pickle.loads(metadata.iloc[0]['game_transitions']),
         'nash_strategy': pickle.loads(metadata.iloc[0]['nash_strategy']),
-        'all_vfe': np.stack(all_vfe),
-        'all_q_u': np.stack(all_q_u),
-        'all_efe': np.stack(all_efe),
-        'all_B': np.stack(all_B),
-        'all_q_s': np.stack(all_q_s),
-        'all_delta_F': np.stack(all_delta_F),
-        'all_entropy': np.stack(all_entropy),
-        'all_candidates': np.stack(all_candidates),
-        'all_model_weights': np.stack(all_model_weights),
+        'all_vfe': all_vfe,
+        'all_q_u': all_q_u,
+        'all_efe': all_efe,
+        'all_B': all_B,
+        'all_q_s': all_q_s,
+        'all_delta_F': all_delta_F,
+        'all_entropy': all_entropy,
+        'all_candidates': all_candidates,
+        'all_model_weights': all_model_weights,
     }
 
 
@@ -88,7 +98,7 @@ def plot_all_games_ensemble_for_one_file(data_list, output_dir, filename):
     fig, axes = plt.subplots(n_rows, num_timestamps, figsize=figsize, dpi=utils.plotting.DPI, squeeze=False)
     fig.subplots_adjust(hspace=0.4, wspace=0.15)
 
-    for col_idx, data in enumerate(tqdm(data_list)):
+    for col_idx, data in enumerate(data_list):
         timestamp = data['timestamp']
         game_transitions = data['game_transitions']
         nash_strategy = data['nash_strategy']
@@ -96,66 +106,23 @@ def plot_all_games_ensemble_for_one_file(data_list, output_dir, filename):
 
         plot_configs = [
             {'plot_fn': utils.plotting.plot_vfe_ensemble,
-             'args': (data['all_vfe'],
-                      game_transitions,
-                      ifLegend)},
+             'args': (data['all_vfe'], game_transitions, ifLegend)},
             {'plot_fn': utils.plotting.plot_expected_efe_ensemble,
-             'args': (data['all_q_u'],
-                      data['all_efe'],
-                      ifLegend)},
+             'args': (data['all_q_u'], data['all_efe'], ifLegend)},
             {'plot_fn': utils.plotting.plot_policies_ensemble,
-             'args': (data['all_q_u'],
-                      game_transitions,
-                      nash_strategy,
-                      ifLegend)},
+             'args': (data['all_q_u'], game_transitions, nash_strategy, ifLegend)},
             {'plot_fn': utils.plotting.plot_B_state_ensemble,
-             'args': (data['all_B'],
-                      data['all_q_s'],
-                      ifLegend,
-                      False,
-                      True)},
+             'args': (data['all_B'], data['all_q_s'], ifLegend, False, True)},
             {'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-             'args': (data['all_B'],
-                      data['all_q_u'],
-                      game_transitions,
-                      0,  # Ego
-                      "Cooperators",
-                      ifLegend,
+             'args': (data['all_B'], data['all_q_u'], game_transitions, 0,  # Ego
+                      "Cooperators", ifLegend,
                       False,  # Not single -> All seeds
                       True  # Use average for all seeds
                       )},
             {'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-             'args': (data['all_B'],
-                      data['all_q_u'],
-                      game_transitions,
-                      0,  # Ego
-                      "Defectors",
-                      ifLegend,
-                      False,
-                      True)},
+             'args': (data['all_B'], data['all_q_u'], game_transitions, 0, "Defectors", ifLegend, False, True)},
             {'plot_fn': utils.plotting.plot_delta_F_ensemble,
-             'args': (data['all_delta_F'],
-                      game_transitions,
-                      False)},
-            # {'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,  # If uncomment, remember update n_rows to 8
-            #  'args': (data['all_B'],
-            #           data['all_q_u'],
-            #           game_transitions,
-            #           1,  # Alter-Ego
-            #           "Cooperators",
-            #           ifLegend,
-            #           False,  # Not single -> All seeds
-            #           True  # Use average for all seeds
-            #           )},
-            # {'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-            #  'args': (data['all_B'],
-            #           data['all_q_u'],
-            #           game_transitions,
-            #           1,  # Alter-Ego
-            #           "Defectors",
-            #           ifLegend,
-            #           False,
-            #           True)}
+             'args': (data['all_delta_F'], data['all_candidates'])},
         ]
         for row_idx in range(n_rows):
             ax = axes[row_idx, col_idx]
@@ -185,123 +152,37 @@ def plot_all_games_ensemble_for_one_file(data_list, output_dir, filename):
         exit()
 
 
-def plot_all_games_ensemble_for_all_files(filenames, base_dir="BMR-Study", output_dir="MAAIF-Ensembles"):
+def plot_all_games_ensemble_for_all_files(args, filenames, base_dir="BMA-Study", output_dir="MAAIF-Ensembles/All"):
     """
     Generate 3 ensemble figures (VFE, EFE, Policy) across all BMR files.
     Each row corresponds to one BMR method, and columns correspond to timestamps (games).
     """
+
     os.makedirs(output_dir, exist_ok=True)
     logging.info(f'Output directory ensured: {output_dir}')
 
     # Define which plots we want
     plot_configs = [
-        {
-            'name': 'Ensemble — Entropy',
-            'plot_fn': utils.plotting.plot_entropy_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_entropy'],
-                ifLegend
-            )
-        },
-        {
-            'name': 'Single — Agent i Model weights (Ego)',
-            'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_model_weights'],
-                data['all_candidates'],
-                0,
-                ifLegend
-            )
-        },
-        {
-            'name': 'Single — Agent j Model weights (Ego)',
-            'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_model_weights'],
-                data['all_candidates'],
-                1,
-                ifLegend
-            )
-        },
-        {
-            'name': 'Ensemble — VFE',
-            'plot_fn': utils.plotting.plot_vfe_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_vfe'],
-                data['game_transitions'],
-                ifLegend
-            )
-        },
-        {
-            'name': 'Ensemble — EFE',
-            'plot_fn': utils.plotting.plot_expected_efe_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_q_u'],
-                data['all_efe'],
-                ifLegend
-            )
-        },
-        {
-            'name': "Ensemble — State P(s'=1)",
-            'plot_fn': utils.plotting.plot_B_state_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_B'],
-                data['all_q_s'],
-                ifLegend,
-                False,  # Enable all seeds
-                True
-            )
-        },
-        {
-            'name': 'Ensemble — Policy P(u=c)',
-            'plot_fn': utils.plotting.plot_policies_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_q_u'],
-                data['game_transitions'],
-                data['nash_strategy'],
-                ifLegend,
-                False  # Enable all seeds
-            )
-        },
-        {
-            'name': 'Single — Policy P(u=c)',
-            'plot_fn': utils.plotting.plot_policies_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_q_u'],
-                data['game_transitions'],
-                data['nash_strategy'],
-                ifLegend,
-                True  # Single seed
-            )
-        },
-        {
-            'name': 'Mean — Belief Separation (Cooperators)',
-            'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_B'],
-                data['all_q_u'],
-                data['game_transitions'],
-                0,
-                "Cooperators",
-                ifLegend,
-                False,
-                True
-            )
-        },
-        {
-            'name': 'Mean — Belief Separation (Defectors)',
-            'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-            'get_args': lambda data, ifLegend: (
-                data['all_B'],
-                data['all_q_u'],
-                data['game_transitions'],
-                0,
-                "Defectors",
-                ifLegend,
-                False,
-                True
-            )
-        },
+        {'name': 'Ensemble — Entropy', 'plot_fn': utils.plotting.plot_entropy_ensemble,
+         'get_args': lambda data, ifLegend: ( data['all_entropy'], ifLegend )},
+        {'name': 'Single — Agent i Model weights (Ego)', 'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
+         'get_args': lambda data, ifLegend: ( data['all_model_weights'], data['all_candidates'], 0, True )},
+        {'name': 'Single — Agent j Model weights (Ego)', 'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
+         'get_args': lambda data, ifLegend: ( data['all_model_weights'], data['all_candidates'], 1, True )},
+        {'name': 'Ensemble — VFE', 'plot_fn': utils.plotting.plot_vfe_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_vfe'], data['game_transitions'], ifLegend)},
+        {'name': 'Ensemble — EFE', 'plot_fn': utils.plotting.plot_expected_efe_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_q_u'], data['all_efe'], ifLegend)},
+        {'name': "Ensemble — State P(s'=1)", 'plot_fn': utils.plotting.plot_B_state_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_s'], ifLegend, False, True )},
+        {'name': 'Ensemble — Policy P(u=c)', 'plot_fn': utils.plotting.plot_policies_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_q_u'], data['game_transitions'], data['nash_strategy'], ifLegend, False )},
+        {'name': 'Single — Policy P(u=c)', 'plot_fn': utils.plotting.plot_policies_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_q_u'], data['game_transitions'], data['nash_strategy'], ifLegend, True )},
+        {'name': 'Mean — Belief Separation (Cooperators)', 'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_u'], data['game_transitions'], 0, "Cooperators", ifLegend, False, True )},
+        {'name': 'Mean — Belief Separation (Defectors)', 'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
+         'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_u'], data['game_transitions'], 0, "Defectors", ifLegend, False, True )},
     ]
 
     # Load data for all BMR files
@@ -310,7 +191,7 @@ def plot_all_games_ensemble_for_all_files(filenames, base_dir="BMR-Study", outpu
         db_path = os.path.join(base_dir, f"{filename}.db")
         metadata = utils.database.retrieve_timeseries_matching(
             db_path=db_path,
-            sql_query='SELECT * FROM metadata WHERE timestamp LIKE "%2025%"'
+            sql_query=f'SELECT * FROM metadata WHERE timestamp LIKE "%{args.timestamp}%"'
         )
         timestamps = metadata['timestamp'].values
         logging.info(f'🔍 [{filename}] Found {len(timestamps)} timestamps: {timestamps}')
@@ -369,24 +250,16 @@ def plot_all_games_ensemble_for_all_files(filenames, base_dir="BMR-Study", outpu
         logging.info(f'✅ Saved {output_path}')
 
 
-def generate_plots(timestamp, args):
-    """Generate plots for a single timestamp using INFG-plot."""
-    args.timestamp = timestamp
-    logging.info(f'📊 Plotting data for timestamp {timestamp}')
-    plotsie.main(args)
-
-
 if __name__ == '__main__':
     # Manage all BMR files here
-    # bmr_methods = ["NoBMR", "Baseline_0.5", "Epsilon_0.25"]
-    bmr_methods = ["BMA_all", "BMA_red", "BMA_pure"]
+    bmr_methods = ["AIF_Same", "AIF_TFT", "AIF_Grim", "AIF_Pavlov", "AIF_Mix"]
 
-    # Select the focused one
+    # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--db-path', type=str, default=f'BMR-Study/{selected_bmr}.db')
-    argparser.add_argument('--timestamp', type=str, default='2025')
-    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/{selected_bmr}')
+    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/{selected_bmr}.db')
+    argparser.add_argument('--timestamp', type=str, default='2026')
+    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/Single')
     argparser.add_argument('--t-min', type=int, default=None)
     argparser.add_argument('--t-max', type=int, default=None)
     argparser.add_argument('--n-clusters', type=int, default=6)
@@ -402,10 +275,10 @@ if __name__ == '__main__':
         exit()
 
     # Retrieve metadata
+    print(args.db_path)
     metadata = utils.database.retrieve_timeseries_matching(
         db_path=args.db_path,
-        sql_query=f'SELECT * FROM metadata WHERE timestamp LIKE "%{args.timestamp}%"'
-    )
+        sql_query=f'SELECT * FROM metadata WHERE timestamp LIKE "%{args.timestamp}%"')
     timestamps = metadata['timestamp'].values
     logging.info(f'Found {len(timestamps)} timestamps: {timestamps}')
 
@@ -418,13 +291,17 @@ if __name__ == '__main__':
         exit()
 
     # Generate combined ensemble figure for .db files
-    plot_all_games_ensemble_for_all_files(bmr_methods)
-    # plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
+    plot_all_games_ensemble_for_all_files(args, bmr_methods)
+    plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
 
-    # Parallel generation for individual experiments
+
+    # def generate_plots(timestamp, args):
+    #     """Generate plots for a single timestamp using INFG-plot."""
+    #     args.timestamp = timestamp
+    #     logging.info(f'📊 Plotting data for timestamp {timestamp}')
+    #     plotsie.main(args)
     # with Pool(processes=4) as pool:
     #     pool.starmap(generate_plots, [(timestamp, args) for timestamp in timestamps])
 
     logging.info('\n😎 INFG-plot-batch.py Done!')
-
     exit()

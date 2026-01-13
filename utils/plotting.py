@@ -68,9 +68,9 @@ def unstack(a, axis=0):
 def get_action_labels(num_actions):
     '''Define action labels based on the number of actions'''
     if num_actions == 2:
-        return ['$q(\hat u = \mathtt{c})$', '$q(\hat u = \mathtt{d})$']
+        return ['$q(u = c)$', '$q(u = d)$']
     elif num_actions == 3:
-        return ['Strategy 0', 'Strategy 1', 'Strategy 2']
+        return ['$q(u = 0)$', '$q(u = 1)$', '$q(u = 2)$']
     else:
         # return [f'Action {i}' for i in range(num_actions)]
         # Return binary representation of actions
@@ -651,7 +651,7 @@ def plot_efe(
     ax.set_ylim(ymin - margin, ymax + margin)
     # ax.set_xlim(400, 800)
     if not ONLY_LEFT_Y_LABEL or (ONLY_LEFT_Y_LABEL and i == 0):
-        ax.set_ylabel('$G[\hat u]$', color='black', fontsize=label_font_size)
+        ax.set_ylabel('$G[u]$', color='black', fontsize=label_font_size)
     if ONLY_LEFT_Y_LABEL and i > 0:
         ax.set_yticklabels([])
     if SHOW_LEGEND and i == LEGEND_IDX:
@@ -725,7 +725,7 @@ def plot_efe_diff_decomposition(
 
     ax.set_title(f'Agent {chr(105 + i)}: EFE Difference (Cooperate - Defect)', fontsize=label_font_size)
     ax.set_xlabel('Time step (t)', fontsize=label_font_size)
-    ax.set_ylabel('$\Delta$ EFE Components', fontsize=label_font_size)
+    ax.set_ylabel('ΔEFE Components', fontsize=label_font_size)
     # ax.set_xlim(400, 800)
 
     # Add legend only for the first agent to avoid clutter
@@ -1265,7 +1265,7 @@ def plot_policy_entropy(
     ax.set_xlabel('Time step (t)', fontsize=label_font_size)
     ax.set_ylim(-0.1, max_ent + 0.1)
     if not ONLY_LEFT_Y_LABEL or (ONLY_LEFT_Y_LABEL and i == 0):
-        ax.set_ylabel('$H[q(\hat u)]$', fontsize=label_font_size)
+        ax.set_ylabel('$H[q(u)]$', fontsize=label_font_size)
     if ONLY_LEFT_Y_LABEL and i > 0:
         ax.set_yticklabels([])
 
@@ -1585,6 +1585,7 @@ def plot_B_overtime(B_history, state, ax, i, t_min=0, t_max=None):
 #
 def plot_vfe_ensemble(vfe_history, game_transitions,
                       ifLegend=True, ax=None):
+    vfe_history = np.array(vfe_history)
     num_seeds = vfe_history.shape[0]
     # print(vfe_history.shape) # (4 Seed, 1000 Time, 2 agents, 2 actions)
     for s in range(num_seeds):
@@ -1605,6 +1606,7 @@ def plot_vfe_ensemble(vfe_history, game_transitions,
 
 def plot_policies_ensemble(q_u_history, game_transitions, nash_strategy,
                            ifLegend=True, single=False, ax=None):
+    q_u_history = np.array(q_u_history)
     num_seeds, T, num_agents, num_actions = q_u_history.shape
 
     # Duration of the first game
@@ -1682,6 +1684,8 @@ def plot_policies_ensemble(q_u_history, game_transitions, nash_strategy,
 
 def plot_expected_efe_ensemble(q_u_history, efe_history,
                                ifLegend=True, ax=None):
+    q_u_history = np.array(q_u_history)
+    efe_history= np.array(efe_history)
     num_seeds, T, num_agents, num_actions = q_u_history.shape
 
     # Compute per-agent EFE: (S, T, agents)
@@ -1718,6 +1722,8 @@ def plot_B_state_ensemble(B_history, q_s_history,
     - q_s_history: (num_seeds, T, num_agents, num_factors, 2) state belief history
     - ax: Matplotlib axis to plot on
     """
+    B_history = np.array(B_history)
+    q_s_history = np.array(q_s_history)
     num_seeds, T, num_agents, num_factors, num_actions, _, _ = B_history.shape
 
     # Colors for actions
@@ -1794,6 +1800,8 @@ def plot_B_separation_degree_ensemble(B_history, q_u_history, game_transitions, 
         - single=True  : plot only one seed's trajectories
         - average=True : plot only the mean trajectory of all agents for selectedRole
     """
+    B_history = np.array(B_history)
+    q_u_history = np.array(q_u_history)
     num_seeds, T, num_agents, _, num_actions, num_states, _ = B_history.shape
     factor_idx = factor
 
@@ -1880,28 +1888,39 @@ def plot_B_separation_degree_ensemble(B_history, q_u_history, game_transitions, 
         ax.legend(loc="lower right", fontsize=label_font_size)
 
 
-def plot_delta_F_ensemble(delta_F_history, game_transitions,
+def plot_delta_F_ensemble(delta_F_history, candidates, agent_idx=0, factor_idx=0,
                           ifLegend=True, ax=None):
-    num_seeds = delta_F_history.shape[0]
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 4))
 
-    # Plot individual trajectories
-    for s in range(num_seeds):
-        summed_vfe = delta_F_history[s].sum(axis=(1, 2, 3))  # sum over agents, factors, actions
-        ax.plot(summed_vfe, color="blue", alpha=0.5, linewidth=LINEWIDTH, label="Individuals" if s == 0 else None)
+    seed = 0
+    T = len(delta_F_history[0])
+    model_names = candidates[seed][0][agent_idx].split()
+    print(model_names)
+    num_models = len(delta_F_history[0][0][agent_idx][factor_idx])
+    print(num_models)
+    stack_data = [[] for _ in range(num_models)]
+    for t in range(T):
+        for m in range(num_models):
+            stack_data[m].append(delta_F_history[seed][t][agent_idx][factor_idx][m].item())
 
-    # Mean trajectory (single line)
-    mean_delta_F = delta_F_history.sum(axis=(2, 3, 4)).mean(axis=0)
-    # ax.plot(mean_delta_F, color=ELBO_COLOR, linewidth=LINEWIDTH * 2)
+    stack_data = np.array(stack_data, dtype=float)
+    if ifLegend:
+        ax.stackplot(range(T), stack_data, labels=model_names, alpha=0.7)
+    else:
+        ax.stackplot(range(T), stack_data, alpha=0.7)
 
     ax.set_xlabel('Time step (t)', fontsize=label_font_size)
-    ax.set_ylabel('ΔF', color='black', fontsize=label_font_size)
-
+    ax.set_ylabel('ΔF (Ego, factor=0)', fontsize=label_font_size)
+    ax.set_ylim([0 - MARGIN, 1 + MARGIN])
+    ax.grid(True, alpha=0.3)
     if ifLegend:
-        ax.legend(loc='upper right', fontsize=label_font_size)
+        ax.legend(loc='upper right', fontsize=label_font_size / 2)
 
 
 def plot_entropy_ensemble(entropy_history,
                           ifLegend=True, ax=None):
+    entropy_history = np.array(entropy_history)
     num_seeds, T, num_agents, num_factors = entropy_history.shape  # (4 seeds, 1000 steps, 2 agents, 2 factors)
     linestyles = ['-', '--']
 
@@ -1930,43 +1949,35 @@ def plot_entropy_ensemble(entropy_history,
 
 
 def plot_B_model_weights_ensemble(weights_history, candidates, agent_idx,
-                                  ifLegend=True,
-                                  ax=None):
-    num_seeds, T, num_agents, num_factors, num_models = weights_history.shape
-    print(candidates.shape)
-
+                                  ifLegend=True, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 4))
 
-    # fix first seed, agent 0, factor 0
-    s, a, f = 0, agent_idx, 0
-    model_names = candidates[s][0][a]
+    seed, agent, factor = 0, agent_idx, 0
+    model_names = candidates[seed][0][agent].split()
+    T = len(weights_history[0])
 
-    stack_data = weights_history[s, :, a, f, :].T  # (num_models, T)
+
+    num_models = len(weights_history[seed][0][agent][factor])
+    stack_data = [[] for _ in range(num_models)]  # 每个模型一行
+
+    for t in range(T):
+        for m in range(num_models):
+            stack_data[m].append(weights_history[seed][t][agent][factor][m].item())
+
+    stack_data = np.array(stack_data, dtype=float)
 
     if ifLegend:
-        ax.stackplot(
-            range(T),
-            stack_data,
-            labels=model_names,
-            alpha=0.5
-        )
+        ax.stackplot(range(T), stack_data, labels=model_names, alpha=0.5)
     else:
-        ax.stackplot(
-            range(T),
-            stack_data,
-            alpha=0.5
-        )
+        ax.stackplot(range(T), stack_data, alpha=0.5)
 
     ax.set_xlabel('Time step (t)', fontsize=label_font_size)
     ax.set_ylabel('Model weights', fontsize=label_font_size)
     ax.set_ylim([0 - MARGIN, 1 + MARGIN])
     ax.grid(True, alpha=0.3)
-
     if ifLegend:
-        ax.legend(loc='lower right', fontsize=label_font_size / 2)
-
-    return ax
+        ax.legend(loc='lower right', fontsize=label_font_size)
 
 
 def plot_state_space_trajectory(

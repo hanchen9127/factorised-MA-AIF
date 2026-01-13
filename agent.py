@@ -65,7 +65,7 @@ class Agent:
             B_BMR: Union[str, None] = 'epsilon',
             alpha_r: float = 0.25,
             gamma_r: float = 1,
-            B_candidates=["Full"]
+            B_candidates=None
     ):
         """Initialise an agent with the following parameters
 
@@ -94,6 +94,8 @@ class Agent:
             - theta_prior (Union[torch.Tensor, NoneType]): The prior for the initial state
         """
 
+        if B_candidates is None:
+            B_candidates = "Full"
         self.id = id
 
         # Generative model hyperparameters -------------------------------------
@@ -194,10 +196,10 @@ class Agent:
         self.alpha_r = alpha_r  # Strength parameter for BMR
         self.gamma_r = gamma_r  # Softmax strength for BMA
         self.B_candidates = B_candidates
-        self.delta_F = torch.zeros(self.num_agents, len(B_candidates),  # num of B models in BMA
+        self.delta_F = torch.zeros(self.num_agents, len(B_candidates.split()),  # num of B models in BMA
                                    dtype=torch.float32,
                                    device=self.B_params.device)  # log p(y|M_red) - log p(y|M_full)
-        self.B_model_weights = torch.zeros(self.num_agents, len(B_candidates),  # num of B models in BMA
+        self.B_model_weights = torch.zeros(self.num_agents, len(B_candidates.split()),  # num of B models in BMA
                                            dtype=torch.float32, device=self.B_params.device)
 
         self.delta_F_A = torch.zeros(self.num_agents,
@@ -271,7 +273,7 @@ class Agent:
                 # If 1D, format the elements directly
                 return '\t'.join([f'{item:.2f}' for item in tensor])
             else:
-                # If multi-dimensional, apply the formatting to each slice along the first dimension
+                # If multidimensional, apply the formatting to each slice along the first dimension
                 return '\n'.join([format_tensor(tensor_slice) for tensor_slice in tensor])
 
         # Format the game matrix and opponent model parameters

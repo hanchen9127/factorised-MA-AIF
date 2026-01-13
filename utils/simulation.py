@@ -109,9 +109,9 @@ def simulate_parallel(
 
     # Experiment repeats (parallel execution) ----------------------------------
     seeds = np.random.choice(500, num_repeats, replace=False).tolist()
-    print("Original random seed design", seeds, "is changed to", list(range(1, num_repeats + 1)), "for reproducibility!")
+    print("Original random seed design", seeds, "is replaced with", list(range(1, num_repeats + 1)), "for reproducibility!")
     seeds = list(range(1, num_repeats + 1))
-    BATCH_SIZE = 4
+    BATCH_SIZE = 8
     num_batches = np.ceil(num_repeats / BATCH_SIZE).astype(int)
 
     for batch_idx in range(num_batches):
@@ -204,7 +204,7 @@ class IteratedGame:
                 'A',
                 'B',
                 'learn_record',
-                'o_pred_record',
+                #'o_pred_record',
                 'B_candidates',
                 'B_model_weights',
                 'delta_F',

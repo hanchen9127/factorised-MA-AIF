@@ -1,5 +1,5 @@
 h5py==3.11.0
-pytorch
+torch
 gitpython
 pandas~=2.3.3
 torch~=2.9.1

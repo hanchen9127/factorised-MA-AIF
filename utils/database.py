@@ -64,7 +64,11 @@ def store_timeseries(commit_sha, timestamp, seed, variables_history, results_db_
         'seed': seed,
     }
     for key, value in variables_history.items():
-        pickles[key] = [pickle.dumps(np.array(value))]
+        # print("key:", key, value)
+        try:
+            pickles[key] = [pickle.dumps(np.array(value))]
+        except ValueError:
+            pickles[key] = [pickle.dumps(value)]
 
     # Store in database
     df = pd.DataFrame.from_dict(pickles)
@@ -90,6 +94,7 @@ def retrieve_timeseries_matching(
     '''
     if db_path is None:
         raise ValueError("Please provide a path to the database")
+
     conn = sqlite3.connect(db_path)
     experiments = pd.read_sql_query(sql_query, conn)
     conn.close()
