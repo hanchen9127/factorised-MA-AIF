@@ -23,6 +23,8 @@ import sys
 sys.path.append('../')
 
 from agent import Agent
+from dummy import DummyAgent
+
 import utils.database
 
 logging.basicConfig(level=logging.INFO)
@@ -40,13 +42,32 @@ def run_single_simulation(game_transitions, agent_kwargs, T, seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     # Initialisation -------------------------------------------------------
-    agents = [
-        Agent(
-            id=i,
-            game_matrix=game_transitions[0][1],
-            **agent_kwargs[i]
-        ) for i in range(len(agent_kwargs))
-    ]
+    # agents = [
+    #     Agent(
+    #         id=i,
+    #         game_matrix=game_transitions[0][1],
+    #         **agent_kwargs[i]
+    #     ) for i in range(len(agent_kwargs))
+    # ]
+
+    agents = []
+    for i, kwargs in enumerate(agent_kwargs):
+        if "action" in kwargs:
+            agents.append(
+                DummyAgent(
+                    id=i,
+                    game_matrix=game_transitions[0][1],
+                    **kwargs
+                )
+            )
+        else:
+            agents.append(
+                Agent(
+                    id=i,
+                    game_matrix=game_transitions[0][1],
+                    **kwargs
+                )
+            )
 
     ig = IteratedGame(
         agents=agents,
@@ -204,7 +225,7 @@ class IteratedGame:
                 'A',
                 'B',
                 'learn_record',
-                #'o_pred_record',
+                'o_pred_record',
                 'B_candidates',
                 'B_model_weights',
                 'delta_F',

@@ -1722,6 +1722,7 @@ def plot_B_state_ensemble(B_history, q_s_history,
     - q_s_history: (num_seeds, T, num_agents, num_factors, 2) state belief history
     - ax: Matplotlib axis to plot on
     """
+    print(B_history[0][500])
     B_history = np.array(B_history)
     q_s_history = np.array(q_s_history)
     num_seeds, T, num_agents, num_factors, num_actions, _, _ = B_history.shape
@@ -1954,12 +1955,13 @@ def plot_B_model_weights_ensemble(weights_history, candidates, agent_idx,
         fig, ax = plt.subplots(figsize=(6, 4))
 
     seed, agent, factor = 0, agent_idx, 0
+
     model_names = candidates[seed][0][agent].split()
     T = len(weights_history[0])
 
-
+    #print(weights_history[seed][0])
     num_models = len(weights_history[seed][0][agent][factor])
-    stack_data = [[] for _ in range(num_models)]  # 每个模型一行
+    stack_data = [[] for _ in range(num_models)]
 
     for t in range(T):
         for m in range(num_models):

@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--num-repeats', type=int, default=4)
-    argparser.add_argument('--db-path', type=str, default='dummy_test.db')
+    argparser.add_argument('--db-path', type=str, default='dummy_c.db')
 
     args = argparser.parse_args()
 
@@ -69,19 +69,19 @@ if __name__ == '__main__':
         #                              num_steps=[400, 200, 400],
         #                              num_changes=0),
         #
-        generate_dynamic_transitions(dict_games=GAMES,
-                                     game_form="2x2",
-                                     game_ids=[
-                                         "1_2_2_Chicken",
-                                         "1_1_1_Prisoners",
-                                         "3_2_2_StagHunt",
-                                         "3_6_6_Harmony",
-                                         "1_2_2_Chicken"
-                                     ],
-                                     game_to_change=[],
-                                     num_steps=[500, 250, 500, 250, 500],
-                                     num_changes=0
-                                     )
+        # generate_dynamic_transitions(dict_games=GAMES,
+        #                              game_form="2x2",
+        #                              game_ids=[
+        #                                  "1_2_2_Chicken",
+        #                                  "1_1_1_Prisoners",
+        #                                  "3_2_2_StagHunt",
+        #                                  "3_6_6_Harmony",
+        #                                  "1_2_2_Chicken"
+        #                              ],
+        #                              game_to_change=[],
+        #                              num_steps=[500, 250, 500, 250, 500],
+        #                              num_changes=0
+        #                              )
     ]
 
     META_GAME_TRANSITIONS = [g[0] for g in GENERATORS]
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full",  # "Full TFT Grim Pavlov"
+                    B_candidates="Full TFT Grim Pavlov",  # "Full TFT Grim Pavlov"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
@@ -115,7 +115,7 @@ if __name__ == '__main__':
                 ),
                 dict(
                     strategy="TFT",  # "TFT" or "Grim" or "Pavlov"
-                    num_actions=2,  # Limited to cooperate and defect
+                    action=[1, 0],   # Limited to cooperate and defect
                 )
             ]
         ]

@@ -163,26 +163,34 @@ def plot_all_games_ensemble_for_all_files(args, filenames, base_dir="BMA-Study",
 
     # Define which plots we want
     plot_configs = [
-        {'name': 'Ensemble — Entropy', 'plot_fn': utils.plotting.plot_entropy_ensemble,
-         'get_args': lambda data, ifLegend: ( data['all_entropy'], ifLegend )},
-        {'name': 'Single — Agent i Model weights (Ego)', 'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
-         'get_args': lambda data, ifLegend: ( data['all_model_weights'], data['all_candidates'], 0, True )},
-        {'name': 'Single — Agent j Model weights (Ego)', 'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
-         'get_args': lambda data, ifLegend: ( data['all_model_weights'], data['all_candidates'], 1, True )},
-        {'name': 'Ensemble — VFE', 'plot_fn': utils.plotting.plot_vfe_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_vfe'], data['game_transitions'], ifLegend)},
-        {'name': 'Ensemble — EFE', 'plot_fn': utils.plotting.plot_expected_efe_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_q_u'], data['all_efe'], ifLegend)},
-        {'name': "Ensemble — State P(s'=1)", 'plot_fn': utils.plotting.plot_B_state_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_s'], ifLegend, False, True )},
-        {'name': 'Ensemble — Policy P(u=c)', 'plot_fn': utils.plotting.plot_policies_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_q_u'], data['game_transitions'], data['nash_strategy'], ifLegend, False )},
-        {'name': 'Single — Policy P(u=c)', 'plot_fn': utils.plotting.plot_policies_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_q_u'], data['game_transitions'], data['nash_strategy'], ifLegend, True )},
-        {'name': 'Mean — Belief Separation (Cooperators)', 'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_u'], data['game_transitions'], 0, "Cooperators", ifLegend, False, True )},
-        {'name': 'Mean — Belief Separation (Defectors)', 'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
-         'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_u'], data['game_transitions'], 0, "Defectors", ifLegend, False, True )},
+            # {'name': 'Ensemble — Entropy', 'plot_fn': utils.plotting.plot_entropy_ensemble,
+            #  'get_args': lambda data, ifLegend: ( data['all_entropy'], ifLegend )},
+
+            # --- Bayesian Models ---
+            {'name': 'Single — Agent i Model weights (Ego)', 'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
+             'get_args': lambda data, ifLegend: ( data['all_model_weights'], data['all_candidates'], 0, True )},
+            {'name': 'Single — Agent j Model weights (Ego)', 'plot_fn': utils.plotting.plot_B_model_weights_ensemble,
+             'get_args': lambda data, ifLegend: ( data['all_model_weights'], data['all_candidates'], 1, True )},
+
+            # --- Policy ---
+            {'name': 'Ensemble — Policy P(u=c)', 'plot_fn': utils.plotting.plot_policies_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_q_u'], data['game_transitions'], data['nash_strategy'], ifLegend, False)},
+            {'name': 'Single — Policy P(u=c)', 'plot_fn': utils.plotting.plot_policies_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_q_u'], data['game_transitions'], data['nash_strategy'], ifLegend, True)},
+
+            # --- Free Energy ---
+            {'name': 'Ensemble — VFE', 'plot_fn': utils.plotting.plot_vfe_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_vfe'], data['game_transitions'], ifLegend)},
+            {'name': 'Ensemble — EFE', 'plot_fn': utils.plotting.plot_expected_efe_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_q_u'], data['all_efe'], ifLegend)},
+
+            # --- Belief Separation ---
+            {'name': "Ensemble — State P(s'=1)", 'plot_fn': utils.plotting.plot_B_state_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_s'], ifLegend, False, True )},
+            {'name': 'Mean — Belief Separation (Cooperators)', 'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_u'], data['game_transitions'], 0, "Cooperators", ifLegend, False, True )},
+            {'name': 'Mean — Belief Separation (Defectors)', 'plot_fn': utils.plotting.plot_B_separation_degree_ensemble,
+             'get_args': lambda data, ifLegend: (data['all_B'], data['all_q_u'], data['game_transitions'], 0, "Defectors", ifLegend, False, True )},
     ]
 
     # Load data for all BMR files
@@ -252,7 +260,8 @@ def plot_all_games_ensemble_for_all_files(args, filenames, base_dir="BMA-Study",
 
 if __name__ == '__main__':
     # Manage all BMR files here
-    bmr_methods = ["AIF_Same", "AIF_TFT", "AIF_Grim", "AIF_Pavlov", "AIF_Mix"]
+    # bmr_methods = ["AIF_Same", "AIF_TFT", "AIF_Grim", "AIF_Pavlov", "AIF_Mix"]
+    bmr_methods = ["dummy_c","dummy_d"]
 
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
@@ -292,7 +301,7 @@ if __name__ == '__main__':
 
     # Generate combined ensemble figure for .db files
     plot_all_games_ensemble_for_all_files(args, bmr_methods)
-    plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
+    # plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
 
 
     # def generate_plots(timestamp, args):

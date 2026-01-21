@@ -65,7 +65,7 @@ class Agent:
             B_BMR: Union[str, None] = 'epsilon',
             alpha_r: float = 0.25,
             gamma_r: float = 1,
-            B_candidates=None
+            B_candidates="Full"
     ):
         """Initialise an agent with the following parameters
 
@@ -93,9 +93,6 @@ class Agent:
             - E_prior (Union[torch.Tensor, NoneType]): The prior for the habits
             - theta_prior (Union[torch.Tensor, NoneType]): The prior for the initial state
         """
-
-        if B_candidates is None:
-            B_candidates = "Full"
         self.id = id
 
         # Generative model hyperparameters -------------------------------------
@@ -699,6 +696,7 @@ class Agent:
         if self.dynamic_precision:
             self.update_precision(EFE_policies, q_u)
 
+        #print("Agent:", self.q_u, self.u)
         return self.u
 
     def update_precision(self, EFE, q_u):
