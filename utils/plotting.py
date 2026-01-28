@@ -1618,8 +1618,8 @@ def plot_policies_ensemble(q_u_history, game_transitions, nash_strategy,
         for a in range(num_agents):
             ax.plot(
                 q_u_history[s, :, a, 0],
-                alpha=0.7 if a == 0 else 1,
-                color="black",
+                alpha=0.7 if a == 0 else 0.5,
+                color="red" if a == 0 else "black",
                 linewidth=LINEWIDTH,
                 linestyle="-" if a == 0 else "--",
                 label="Agent i" if a == 0 else "Agent j"
@@ -1722,7 +1722,7 @@ def plot_B_state_ensemble(B_history, q_s_history,
     - q_s_history: (num_seeds, T, num_agents, num_factors, 2) state belief history
     - ax: Matplotlib axis to plot on
     """
-    print(B_history[0][500])
+    #print(B_history[0][500])
     B_history = np.array(B_history)
     q_s_history = np.array(q_s_history)
     num_seeds, T, num_agents, num_factors, num_actions, _, _ = B_history.shape
@@ -1897,9 +1897,9 @@ def plot_delta_F_ensemble(delta_F_history, candidates, agent_idx=0, factor_idx=0
     seed = 0
     T = len(delta_F_history[0])
     model_names = candidates[seed][0][agent_idx].split()
-    print(model_names)
+    #print(model_names)
     num_models = len(delta_F_history[0][0][agent_idx][factor_idx])
-    print(num_models)
+    #print(num_models)
     stack_data = [[] for _ in range(num_models)]
     for t in range(T):
         for m in range(num_models):

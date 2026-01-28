@@ -52,7 +52,7 @@ def run_single_simulation(game_transitions, agent_kwargs, T, seed):
 
     agents = []
     for i, kwargs in enumerate(agent_kwargs):
-        if "action" in kwargs:
+        if "strategy" in kwargs:
             agents.append(
                 DummyAgent(
                     id=i,
@@ -262,11 +262,16 @@ class IteratedGame:
                     logging.debug(agent)
                     logging.debug("-" * 40)
 
-                    # Iterated game logic ------------------------------------------------------
+            # # Iterated game logic ------------------------------------------------------
             # Select actions for all agents
             u_all = [agent.select_action() for agent in self.agents]
             u_all_one_hot = F.one_hot(torch.tensor(u_all), self.num_actions).to(
                 torch.float)  # Convert actions to one-hot encoding
+            #print("\nu_all:", u_all)
+            # print(u_all_one_hot)
+
+            # if t == 10:
+            #     exit()
 
             # Each agent infers the state based on their observation
             for agent in self.agents:
@@ -281,7 +286,10 @@ class IteratedGame:
                     tuple([torch.argmax(o_i).item() for o_i in o])  # Indexing the game matrix
                 ]  # Payoff for the selected actions
 
-                agent.infer_state(o)
+                if agent.is_dummy:
+                    agent.infer_state(o, u_all)
+                else:
+                    agent.infer_state(o)
 
                 agent.learn()  # Update the agent's model (only does so every agent.learn_every_t_steps steps)
 

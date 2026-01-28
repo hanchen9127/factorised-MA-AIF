@@ -94,6 +94,7 @@ class Agent:
             - theta_prior (Union[torch.Tensor, NoneType]): The prior for the initial state
         """
         self.id = id
+        self.is_dummy = False
 
         # Generative model hyperparameters -------------------------------------
         self.game_matrix = game_matrix.to(torch.float)  # Rewards from row player's perspective (force to float)
@@ -414,6 +415,7 @@ class Agent:
         self.q_s_history.append(self.q_s)
         self.o_history.append(o)
 
+
         return self.q_s
 
     # ==========================================================================
@@ -696,7 +698,8 @@ class Agent:
         if self.dynamic_precision:
             self.update_precision(EFE_policies, q_u)
 
-        #print("Agent:", self.q_u, self.u)
+        #print(f"Agent {self.id}:", "q_u", self.q_u, "u", self.u)
+
         return self.u
 
     def update_precision(self, EFE, q_u):
