@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--num-repeats', type=int, default=1)
-    argparser.add_argument('--db-path', type=str, default='full_vs_Pavlov.db')
+    argparser.add_argument('--db-path', type=str, default='Grim_vs_Grim.db')
 
     args = argparser.parse_args()
 
@@ -115,7 +115,7 @@ if __name__ == '__main__':
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
                 ),
                 dict(
-                    strategy="Pavlov",  # "Cooperator" or "Defector" or "TFT" or "Grim" or "Pavlov"
+                    strategy="Grim",  # "Cooperator" or "Defector" or "TFT" or "Grim" or "Pavlov"
                 )
             ]
         ]

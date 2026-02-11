@@ -263,7 +263,7 @@ if __name__ == '__main__':
     # bmr_methods = ["AIF_Same", "AIF_TFT", "AIF_Grim", "AIF_Pavlov", "AIF_Mix"]
     #bmr_methods = ["full_vs_TFT", "full_vs_Grim"]
     #bmr_methods = ["all_vs_C", "all_vs_D", "all_vs_TFT", "all_vs_Grim"]
-    bmr_methods = ["full_vs_TFT", "TFT_vs_TFT", "full_vs_Grim", "Grim_vs_Grim"]
+    bmr_methods = ["full_vs_C", "full_vs_D", "full_vs_TFT", "TFT_vs_TFT", "all_vs_TFT", "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
 
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]

@@ -27,6 +27,10 @@ class DummyAgent:
         self.last_opponent_action = None
         self.last_own_action = None
         self.last_payoff = None
+
+        # --- Grim ---
+        self.defect_streak = 0
+        self.grim_threshold = 50
         self.grim_triggered = False
 
         # --- Logging placeholders ---
@@ -77,7 +81,7 @@ class DummyAgent:
 
         elif self.strategy == "TFT":
             if self.t == 0 or self.last_opponent_action is None:
-                self.u = 1  # Inital behavior
+                self.u = 0  # Inital cooperator
             else:
                 self.u = self.last_opponent_action
 
@@ -124,8 +128,14 @@ class DummyAgent:
         joint_action = tuple(torch.argmax(o_i).item() for o_i in o)
         self.last_payoff = self.log_C[joint_action].item()
 
-        # Update Grim trigger
-        if self.strategy == "Grim" and self.last_opponent_action == 1:
+        # --- Update opponent defection streak ---
+        if self.last_opponent_action == 1:
+            self.defect_streak += 1
+        else:
+            self.defect_streak = 0
+
+        # --- Trigger Grim only after persistent defection ---
+        if self.strategy == "Grim" and self.defect_streak >= self.grim_threshold:
             self.grim_triggered = True
 
         return self.q_s
