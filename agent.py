@@ -65,7 +65,8 @@ class Agent:
             B_BMR: Union[str, None] = 'epsilon',
             alpha_r: float = 0.25,
             gamma_r: float = 1,
-            B_candidates="Full"
+            B_candidates="Full",
+            epistemic_gain: float = 1.0,
     ):
         """Initialise an agent with the following parameters
 
@@ -238,6 +239,8 @@ class Agent:
         self.expected_EFE = None  # Expected EFE (under current policy q(u)): <G> = E_q(u)[ G[u] ]
 
         self.o_pred_record = torch.zeros((self.num_agents, self.num_actions))  # Shape: (n_agents, n_actions)
+
+        self.epistemic_gain = epistemic_gain
 
     def set_log_C(self, game_matrix):
         '''Set the log preference over observations (payoffs)
@@ -546,7 +549,7 @@ class Agent:
         #     Risk + Ambiguity = {EFE2}
         #     Average percentage difference = {avg_percentage_diff:.1f}%"""
 
-        EFE = -pragmatic_value - (salience + novelty)
+        EFE = -pragmatic_value - self.epistemic_gain * (salience + novelty)
 
         return EFE.unsqueeze(0), torch.tensor((ambiguity, risk, salience, pragmatic_value, novelty)), q_o_u
 
@@ -875,7 +878,6 @@ class Agent:
                     *[
                         candidate
                         for name, candidate in [
-                            ("Red", a_red),  # Reduced model (via pruning or sharpening as per Jason's thesis),
                             ("TFT", torch.tensor([[[0.99, 0.99],
                                                    [0.01, 0.01]],
                                                   [[0.01, 0.01],

@@ -152,7 +152,7 @@ def plot_all_games_ensemble_for_one_file(data_list, output_dir, filename):
         exit()
 
 
-def plot_all_games_ensemble_for_all_files(args, filenames, base_dir="BMA-Study", output_dir="MAAIF-Ensembles/FullModel"):
+def plot_all_games_ensemble_for_all_files(args, filenames, base_dir, output_dir):
     """
     Generate 3 ensemble figures (VFE, EFE, Policy) across all BMR files.
     Each row corresponds to one BMR method, and columns correspond to timestamps (games).
@@ -260,17 +260,18 @@ def plot_all_games_ensemble_for_all_files(args, filenames, base_dir="BMA-Study",
 
 if __name__ == '__main__':
     # Manage all BMR files here
-    # bmr_methods = ["AIF_Same", "AIF_TFT", "AIF_Grim", "AIF_Pavlov", "AIF_Mix"]
-    #bmr_methods = ["full_vs_TFT", "full_vs_Grim"]
-    #bmr_methods = ["all_vs_C", "all_vs_D", "all_vs_TFT", "all_vs_Grim"]
-    bmr_methods = ["full_vs_C", "full_vs_D", "full_vs_TFT", "TFT_vs_TFT", "all_vs_TFT", "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
+    bmr_methods = ["full_vs_C", "full_vs_D",
+                   "full_vs_TFT", "TFT_vs_TFT", "all_vs_TFT",
+                   "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
+    bmr_methods = ["full_vs_TFT", "TFT_vs_TFT",
+                   "full_vs_Grim", "Grim_vs_Grim"]
 
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/{selected_bmr}.db')
+    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/EG10/{selected_bmr}.db')
     argparser.add_argument('--timestamp', type=str, default='2026')
-    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/same')
+    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/EG10')
     argparser.add_argument('--t-min', type=int, default=None)
     argparser.add_argument('--t-max', type=int, default=None)
     argparser.add_argument('--n-clusters', type=int, default=6)
@@ -302,7 +303,9 @@ if __name__ == '__main__':
         exit()
 
     # Generate combined ensemble figure for .db files
-    plot_all_games_ensemble_for_all_files(args, bmr_methods, output_dir=args.figures_dir)
+    plot_all_games_ensemble_for_all_files(args, bmr_methods,
+                                          base_dir=os.path.split(args.db_path)[0],
+                                          output_dir=args.figures_dir)
     # plot_all_games_ensemble_for_one_file(data_list, args.figures_dir, selected_bmr)
 
 
