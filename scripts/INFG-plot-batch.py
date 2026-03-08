@@ -260,11 +260,13 @@ def plot_all_games_ensemble_for_all_files(args, filenames, base_dir, output_dir)
 
 if __name__ == '__main__':
     # Manage all BMR files here
-    bmr_methods = ["full_vs_C", "full_vs_D",
-                   "full_vs_TFT", "TFT_vs_TFT", "all_vs_TFT",
-                   "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
-    bmr_methods = ["full_vs_TFT", "TFT_vs_TFT",
-                   "full_vs_Grim", "Grim_vs_Grim"]
+    # bmr_methods = ["full_vs_C", "full_vs_D",
+    #                "full_vs_TFT", "TFT_vs_TFT", "all_vs_TFT",
+    #                "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
+
+    # Focus on these 4 types of interactions
+    bmr_methods = ["full_vs_TFT_EG10", "TFT_vs_TFT_EG10",
+                   "full_vs_Grim_EG10", "Grim_vs_Grim_EG10"]
 
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]

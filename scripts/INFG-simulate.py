@@ -29,8 +29,8 @@ import os
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--num-repeats', type=int, default=1)
-    argparser.add_argument('--db-path', type=str, default='all_vs_Grim.db')
+    argparser.add_argument('--num-repeats', type=int, default=8)
+    argparser.add_argument('--db-path', type=str, default='full_vs_Grim_EG1.db')
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -109,14 +109,14 @@ if __name__ == '__main__':
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full TFT Grim",  # "Full TFT Grim"
+                    B_candidates="Full",  # "Full TFT Grim"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
                     compute_novelty=True,
                     # D_prior=[torch.tensor([0.4, 0.6]), torch.tensor([0.6, 0.4])],  # Prior beliefs about hidden states
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
-                    epistemic_gain=1,
+                    epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
                 ),
                 dict(
                     strategy="Grim",  # "Cooperator" or "Defector" or "TFT" or "Grim"
