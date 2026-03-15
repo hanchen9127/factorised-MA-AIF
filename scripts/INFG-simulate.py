@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--num-repeats', type=int, default=8)
-    argparser.add_argument('--db-path', type=str, default='full_vs_Grim_EG1.db')
+    argparser.add_argument('--db-path', type=str, default='full_vs_Grim_EG10.db')
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
                     compute_novelty=True,
                     # D_prior=[torch.tensor([0.4, 0.6]), torch.tensor([0.6, 0.4])],  # Prior beliefs about hidden states
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
-                    epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
+                    epistemic_gain=10,  # A multiplier that encourages exploration of AIF agent
                 ),
                 dict(
                     strategy="Grim",  # "Cooperator" or "Defector" or "TFT" or "Grim"

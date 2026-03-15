@@ -271,9 +271,9 @@ if __name__ == '__main__':
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/EG10/{selected_bmr}.db')
+    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/EG10_group/{selected_bmr}.db')
     argparser.add_argument('--timestamp', type=str, default='2026')
-    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/EG10')
+    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/EG10_group')
     argparser.add_argument('--t-min', type=int, default=None)
     argparser.add_argument('--t-max', type=int, default=None)
     argparser.add_argument('--n-clusters', type=int, default=6)
