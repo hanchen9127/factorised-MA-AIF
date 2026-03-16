@@ -76,6 +76,78 @@ def get_action_labels(num_actions):
         # Return binary representation of actions
         return [f'{i:0{int(np.log2(num_actions))}b}' for i in range(num_actions)]
 
+def _coerce_q_u_history(q_u_history):
+    """
+    Convert nested q_u history (lists of torch tensors / arrays) into a numeric numpy array.
+    Supports both single-seed (T, agents, K) and multi-seed (S, T, agents, K) layouts.
+    """
+    arr = np.array(q_u_history, dtype=object)
+    if arr.dtype != object:
+        return arr
+
+    # Try multi-seed: list[seed][t][agent] -> vector
+    try:
+        return np.array(
+            [[[np.array(a, dtype=float) for a in step] for step in seed] for seed in q_u_history],
+            dtype=float
+        )
+    except Exception:
+        # Fallback to single-seed: list[t][agent] -> vector
+        return np.array(
+            [[np.array(a, dtype=float) for a in step] for step in q_u_history],
+            dtype=float
+        )
+
+def _marginalize_policy(q_u_history, game_transitions):
+    """
+    Convert policy-distribution q_u (over action sequences) into marginal action probabilities.
+    If already action-level, returns unchanged.
+    """
+    if not game_transitions:
+        return q_u_history
+    num_actions = game_transitions[0][1].shape[0]
+    last_dim = q_u_history.shape[-1]
+    if last_dim == num_actions:
+        return q_u_history
+    if last_dim % num_actions != 0:
+        return q_u_history
+    return q_u_history.reshape(*q_u_history.shape[:-1], num_actions, -1).sum(axis=-1)
+
+def _coerce_q_u_action_history(q_u_history, game_transitions):
+    """
+    Convert q_u history into action-level probabilities with uniform length per agent.
+    Handles mixed agent types (e.g., active agent with policy-length>1 and dummy agent).
+    """
+    num_actions = game_transitions[0][1].shape[0] if game_transitions else None
+
+    def to_action_vec(q):
+        q_arr = np.array(q, dtype=float)
+        if num_actions is None:
+            return q_arr
+        if q_arr.shape[0] == num_actions:
+            return q_arr
+        if q_arr.shape[0] % num_actions != 0:
+            raise ValueError("q_u length is not divisible by num_actions; cannot marginalize.")
+        return q_arr.reshape(num_actions, -1).sum(axis=1)
+
+    def convert_seed(seed_hist):
+        out = []
+        for step in seed_hist:
+            out.append([to_action_vec(q) for q in step])
+        return np.array(out, dtype=float)
+
+    if isinstance(q_u_history, np.ndarray) and q_u_history.dtype != object:
+        arr = q_u_history
+        if num_actions is not None and arr.shape[-1] != num_actions:
+            arr = arr.reshape(*arr.shape[:-1], num_actions, -1).sum(axis=-1)
+        return arr
+
+    # Multi-seed: list[seed][t][agent]
+    if isinstance(q_u_history, list) and q_u_history and isinstance(q_u_history[0], list) and q_u_history[0] and isinstance(q_u_history[0][0], list):
+        return np.array([convert_seed(seed) for seed in q_u_history], dtype=float)
+
+    # Single-seed: list[t][agent]
+    return convert_seed(q_u_history)
 
 # def get_figure_size(num_players, num_actions, base_width=6, base_height=4):
 #     '''Determine figure size based on the number of players and actions'''
@@ -171,7 +243,7 @@ def add_learning_marker(i, ax, t_min, t_max,
 
 
 # ==============================================================================
-# Main plotting function 
+# Main plotting function
 # ==============================================================================
 
 def make_default_config(variables_history, nash_strategy, game_transitions):
@@ -325,7 +397,7 @@ def make_default_config(variables_history, nash_strategy, game_transitions):
         {'plot_fn': plot_policy_entropy,
          'args': (variables_history['q_u'],)},
 
-        # {'plot_fn': plot_A, 
+        # {'plot_fn': plot_A,
         # 'args': (variables_history['A'], )},
 
         # {'plot_fn': plot_B_snapshot,
@@ -643,7 +715,7 @@ def plot_efe(
         efe_history[t_min:t_max].max(),
         risk[t_min:t_max].max(),
         ambiguity[t_min:t_max].max(),
-        -pragmatic_value[t_min:t_max].min(),  # negative 
+        -pragmatic_value[t_min:t_max].min(),  # negative
         salience[t_min:t_max].max(),
         novelty[t_min:t_max].max()
     )
@@ -658,7 +730,7 @@ def plot_efe(
         # Combine both legends in one box
         lines = [
             efe_plot[0],
-            # risk_plot[0], ambiguity_plot[0], 
+            # risk_plot[0], ambiguity_plot[0],
             pv_plot[0],
             salience_plot[0],
             novelty_plot[0]
@@ -784,12 +856,12 @@ def plot_expected_efe(
         # Create a secondary y-axis for Risk, Ambiguity, Salience, Pragmatic Value, and Novelty)
         ax2 = ax  # .twinx()
         # risk_plot = ax2.plot(
-        #     x_range, 
-        #     summed_risk, 
+        #     x_range,
+        #     summed_risk,
         #     label='r', color=RISK_COLOR, linestyle=':', linewidth=LINEWIDTH)
         # ambiguity_plot = ax2.plot(
-        #     x_range, 
-        #     summed_ambiguity, 
+        #     x_range,
+        #     summed_ambiguity,
         #     label='a', color=AMBIGUITY_COLOR, linestyle='--', linewidth=LINEWIDTH)
         pragmatic_value_plot = ax2.plot(
             x_range,
@@ -800,8 +872,8 @@ def plot_expected_efe(
             summed_salience,
             label='Salience', color=SALIENCE_COLOR, linestyle=':', linewidth=LINEWIDTH)
         # novelty_plot = ax2.plot(
-        #     x_range, 
-        #     summed_novelty, 
+        #     x_range,
+        #     summed_novelty,
         #     label='Novelty', color=NOVELTY_COLOR, linestyle=':', linewidth=LINEWIDTH)
 
     # Set labels and title
@@ -836,7 +908,7 @@ def plot_expected_efe(
         if plot_EFE_terms:
             lines = [
                 efe_plot[0],
-                # risk_plot[0], ambiguity_plot[0], 
+                # risk_plot[0], ambiguity_plot[0],
                 pragmatic_value_plot[0], salience_plot[0],
                 # novelty_plot[0]
             ]
@@ -1321,8 +1393,8 @@ def plot_inferred_policy_heatmap(
 #     cax = ax.imshow(
 #         log_C_modality_history[:, i, :, :].reshape(-1, num_players*num_actions).T,
 #         # vmin=0, vmax=1,
-#         origin='upper', 
-#         aspect='auto', 
+#         origin='upper',
+#         aspect='auto',
 #         interpolation='nearest'
 #     )
 #     print(f'log_C_modality (agent {i}) (min, max):\t{log_C_modality_history[:, i, :, :].min():0.4f}, {log_C_modality_history[:, i, :, :].max():0.4f}')
@@ -1352,8 +1424,8 @@ def plot_inferred_policy_heatmap(
 #     for j in top_indices:
 #         current_action = all_joint_actions_enum[j]
 #         ax.plot(
-#             range(t_max), 
-#             log_C_values[:, j], 
+#             range(t_max),
+#             log_C_values[:, j],
 #             label=str(current_action.tolist()),
 #             linewidth=LINEWIDTH
 #         )
@@ -1606,7 +1678,7 @@ def plot_vfe_ensemble(vfe_history, game_transitions,
 
 def plot_policies_ensemble(q_u_history, game_transitions, nash_strategy,
                            ifLegend=True, single=False, ax=None):
-    q_u_history = np.array(q_u_history)
+    q_u_history = _coerce_q_u_action_history(q_u_history, game_transitions)
     num_seeds, T, num_agents, num_actions = q_u_history.shape
 
     # Duration of the first game
@@ -1684,17 +1756,27 @@ def plot_policies_ensemble(q_u_history, game_transitions, nash_strategy,
 
 def plot_expected_efe_ensemble(q_u_history, efe_history,
                                ifLegend=True, ax=None):
-    q_u_history = np.array(q_u_history)
-    efe_history= np.array(efe_history)
-    num_seeds, T, num_agents, num_actions = q_u_history.shape
-
-    # Compute per-agent EFE: (S, T, agents)
-    expected_efe = np.empty((num_seeds, T, num_agents))
-
-    for s in range(num_seeds):
-        for t in range(T):
-            for a in range(num_agents):
-                expected_efe[s, t, a] = np.dot(q_u_history[s, t, a], efe_history[s, t, a])
+    try:
+        q_u_history = _coerce_q_u_history(q_u_history)
+        efe_history = _coerce_q_u_history(efe_history)
+        num_seeds, T, num_agents, _ = q_u_history.shape
+        expected_efe = np.empty((num_seeds, T, num_agents))
+        for s in range(num_seeds):
+            for t in range(T):
+                for a in range(num_agents):
+                    expected_efe[s, t, a] = np.dot(q_u_history[s, t, a], efe_history[s, t, a])
+    except ValueError:
+        # Fallback for mixed agent q_u sizes (e.g., policy-length agents + dummy agents)
+        num_seeds = len(q_u_history)
+        T = len(q_u_history[0])
+        num_agents = len(q_u_history[0][0])
+        expected_efe = np.empty((num_seeds, T, num_agents))
+        for s in range(num_seeds):
+            for t in range(T):
+                for a in range(num_agents):
+                    q = np.array(q_u_history[s][t][a], dtype=float)
+                    e = np.array(efe_history[s][t][a], dtype=float)
+                    expected_efe[s, t, a] = np.dot(q, e)
 
         # Plot individual agents' trajectories for this seed
         for a in range(num_agents):
@@ -1802,7 +1884,7 @@ def plot_B_separation_degree_ensemble(B_history, q_u_history, game_transitions, 
         - average=True : plot only the mean trajectory of all agents for selectedRole
     """
     B_history = np.array(B_history)
-    q_u_history = np.array(q_u_history)
+    q_u_history = _coerce_q_u_action_history(q_u_history, game_transitions)
     num_seeds, T, num_agents, _, num_actions, num_states, _ = B_history.shape
     factor_idx = factor
 
