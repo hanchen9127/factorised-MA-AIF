@@ -29,8 +29,8 @@ import os
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--num-repeats', type=int, default=1)
-    argparser.add_argument('--db-path', type=str, default='TFT_vs_TFT_EG10.db')
+    argparser.add_argument('--num-repeats', type=int, default=4)
+    argparser.add_argument('--db-path', type=str, default='full_vs_red.db')
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         #                              game_form="2x2",
         #                              game_ids=["1_2_2_Chicken", "3_6_6_Harmony", "1_2_2_Chicken"],
         #                              game_to_change=[],
-        #                              num_steps=[400, 200, 400],
+        #                              num_steps=[800, 400, 800],
         #                              num_changes=0),
         generate_dynamic_transitions(dict_games=GAMES,
                                      game_form="2x2",
@@ -69,9 +69,15 @@ if __name__ == '__main__':
         #                              game_form="2x2",
         #                              game_ids=["3_2_2_StagHunt", "3_6_6_Harmony", "3_2_2_StagHunt"],
         #                              game_to_change=[],
-        #                              num_steps=[400, 200, 400],
+        #                              num_steps=[800, 400, 800],
         #                              num_changes=0),
-        #
+        generate_dynamic_transitions(dict_games=GAMES,
+                                     game_form="2x2",
+                                     game_ids=["1_2_2_Chicken", "3_2_2_StagHunt"],
+                                     game_to_change=[],
+                                     num_steps=[1000, 2000],
+                                     num_changes=0),
+
         # generate_dynamic_transitions(dict_games=GAMES,
         #                              game_form="2x2",
         #                              game_ids=[
@@ -100,28 +106,48 @@ if __name__ == '__main__':
         META_AGENT_KWARGS = [
             [
                 dict(
-                    deterministic_actions=True,
+                    deterministic_actions=False,
                     beta_1=30,  # Default Rationality
                     # beta_1=5,  # Encourages exploration over sharp action preferences
                     # interoception=True,
-                    policy_length=2,  # Two-step planning (aligns with diagram)
+                    policy_length=1,  # Two-step planning (aligns with diagram)
                     A_prior=99,
                     A_learning=False,
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full TFT",  # "Full TFT Grim"
+                    B_candidates="Full",  # "Full TFT Grim Reduce"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
                     compute_novelty=True,
                     # D_prior=[torch.tensor([0.4, 0.6]), torch.tensor([0.6, 0.4])],  # Prior beliefs about hidden states
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
-                    epistemic_gain=10,  # A multiplier that encourages exploration of AIF agent
+                    epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
                 ),
                 dict(
-                    strategy="TFT",  # "Cooperator" or "Defector" or "TFT" or "Grim"
-                )
+                    deterministic_actions=False,
+                    beta_1=30,  # Default Rationality
+                    # beta_1=5,  # Encourages exploration over sharp action preferences
+                    # interoception=True,
+                    policy_length=1,  # Two-step planning (aligns with diagram)
+                    A_prior=99,
+                    A_learning=False,
+                    B_prior=0,
+                    B_learning=True,
+                    B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
+                    B_candidates="Full Reduce",  # "Full TFT Grim Reduce"
+                    B_learning_rate=1,  # Update heavily reflect observed data
+                    alpha_r=0.5,
+                    gamma_r=1.0,
+                    compute_novelty=True,
+                    # D_prior=[torch.tensor([0.4, 0.6]), torch.tensor([0.6, 0.4])],  # Prior beliefs about hidden states
+                    # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
+                    epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
+                ),
+                # dict(
+                #     strategy="TFT",  # "Cooperator" or "Defector" or "TFT" or "Grim"
+                # )
             ]
         ]
 
