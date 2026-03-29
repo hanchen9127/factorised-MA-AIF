@@ -494,7 +494,9 @@ class Agent:
             salience = ppo_entropy - ambiguity
 
         # Novelty ----------------------------------------------------------
-        if self.compute_novelty:
+        # For causal alignment: at depth==1, epistemic effects should not
+        # depend on the candidate action, so we skip novelty there.
+        if self.compute_novelty and depth > 1:
             if self.A_learning:
                 novelty += self.compute_A_novelty(q_s_u, q_o_u)
             if self.B_learning:
@@ -503,7 +505,8 @@ class Agent:
                 novelty += self.compute_B_novelty(self.q_s, q_s_u, action_idx)
 
         # Final EFE summation
-        EFE = -pragmatic_value - (salience + novelty)
+        # Epistemic gain scales information-seeking terms (salience + novelty).
+        EFE = -pragmatic_value - self.epistemic_gain * (salience + novelty)
 
         return EFE.unsqueeze(0), torch.tensor((ambiguity, risk, salience, pragmatic_value, novelty)), q_o_u
 

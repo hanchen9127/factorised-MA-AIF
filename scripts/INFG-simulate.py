@@ -29,8 +29,8 @@ import os
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--num-repeats', type=int, default=4)
-    argparser.add_argument('--db-path', type=str, default='full_vs_red.db')
+    argparser.add_argument('--num-repeats', type=int, default=1)
+    argparser.add_argument('--db-path', type=str, default='all_vs_Grim.db')
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         META_AGENT_KWARGS = [
             [
                 dict(
-                    deterministic_actions=False,
+                    deterministic_actions=True,
                     beta_1=30,  # Default Rationality
                     # beta_1=5,  # Encourages exploration over sharp action preferences
                     # interoception=True,
@@ -116,7 +116,7 @@ if __name__ == '__main__':
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full",  # "Full TFT Grim Reduce"
+                    B_candidates="Full TFT Grim Reduce",  # "Full TFT Grim Reduce"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
@@ -126,28 +126,8 @@ if __name__ == '__main__':
                     epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
                 ),
                 dict(
-                    deterministic_actions=False,
-                    beta_1=30,  # Default Rationality
-                    # beta_1=5,  # Encourages exploration over sharp action preferences
-                    # interoception=True,
-                    policy_length=1,  # Two-step planning (aligns with diagram)
-                    A_prior=99,
-                    A_learning=False,
-                    B_prior=0,
-                    B_learning=True,
-                    B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full Reduce",  # "Full TFT Grim Reduce"
-                    B_learning_rate=1,  # Update heavily reflect observed data
-                    alpha_r=0.5,
-                    gamma_r=1.0,
-                    compute_novelty=True,
-                    # D_prior=[torch.tensor([0.4, 0.6]), torch.tensor([0.6, 0.4])],  # Prior beliefs about hidden states
-                    # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
-                    epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
-                ),
-                # dict(
-                #     strategy="TFT",  # "Cooperator" or "Defector" or "TFT" or "Grim"
-                # )
+                    strategy="Grim",  # "Cooperator" or "Defector" or "TFT" or "Grim"
+                )
             ]
         ]
 
