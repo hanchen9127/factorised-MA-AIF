@@ -265,18 +265,17 @@ if __name__ == '__main__':
     #                "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
 
     # Focus on these 4 types of interactions
-    bmr_methods = ["full_vs_full", "full_vs_red", "red_vs_red",
-                   "full_vs_TFT", "TFT_vs_TFT", "full_vs_Grim", "Grim_vs_Grim",
-                   # "full_vs_TFT_EG10", "TFT_vs_TFT_EG10",
-                   # "full_vs_Grim_EG10", "Grim_vs_Grim_EG10"
+    bmr_methods = ["full_vs_full", "full_vs_full_deter", #"red_vs_red",
+                   "full_vs_TFT", "TFT_vs_TFT", #"all_vs_TFT",
+                   "full_vs_Grim", "Grim_vs_Grim", 
                    ]
-    #bmr_methods = ["full_vs_full", "full_vs_red", "red_vs_red"] # ,
+    #bmr_methods = ["full_vs_full", "full_vs_TFT", "TFT_vs_TFT"]
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/cdxFix2/{selected_bmr}.db')
+    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/claudeFix/{selected_bmr}.db')
     argparser.add_argument('--timestamp', type=str, default='2026')
-    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/cdxFix2')
+    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/claudeFix')
     argparser.add_argument('--t-min', type=int, default=None)
     argparser.add_argument('--t-max', type=int, default=None)
     argparser.add_argument('--n-clusters', type=int, default=6)

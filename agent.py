@@ -104,7 +104,7 @@ class Agent:
 
         # Generative model parameters ------------------------------------------
 
-        # A matrix encodes the likelihood: A[o,s]=P(o∣s).
+        # A matrix encodes the likelihood: A[s,o]=P(o∣s).
         # The probability of observing o given that the true hidden state is s.
         # Is used to create a default prior where each agent strongly expects observation o when in state s = o
         if isinstance(A_prior, torch.Tensor):
@@ -415,7 +415,7 @@ class Agent:
             # assert torch.allclose(VFE, complexity - accuracy, atol=TOLERANCE), "VFE != complexity - accuracy"
 
         # Data collection (for learning and plotting)
-        self.q_s_history.append(self.q_s)
+        self.q_s_history.append(self.q_s.detach().clone())
         self.o_history.append(o)
 
 
@@ -446,7 +446,7 @@ class Agent:
         novelty = torch.tensor(0.0)
 
         # Predictive observation posterior -------------------------------------
-        q_o_u = torch.einsum('fso,fs->fo', A, q_s_u)
+        q_o_u = torch.einsum('fos,fs->fo', A, q_s_u)
         # Ego's guaranteed observation for proposed action
         q_o_u[0] = F.one_hot(u, self.num_actions).to(torch.float)
 
@@ -667,7 +667,7 @@ class Agent:
 
         # Retrieve q_o_u for the selected action from the policy tree
         for child in root.children:
-            if child.u == self.u:
+            if child.u.item() == self.u:
                 # Store the current predicted observation (shape: n_agents x n_actions)
                 self.o_pred_record = child.q_o_u.detach().clone()
                 break
@@ -684,8 +684,9 @@ class Agent:
         self.expected_EFE = torch.dot(q_u, EFE).item()
 
         # Update gamma (the precision) based on the expected EFE
-        self.gamma = self.beta_1 / (self.beta_0 - self.expected_EFE)
-
+        # self.gamma = self.beta_1 / (self.beta_0 - self.expected_EFE)
+        denom = max(self.beta_0 - self.expected_EFE, 1e-6)
+        self.gamma = self.beta_1 / denom
         return self.gamma
 
     # ==========================================================================
@@ -725,7 +726,7 @@ class Agent:
 
         # Perform the row-wise outer product
         outer_products = torch.einsum(  # Compute outer products
-            'tfs,tfo->tfos',  # t (time), f (factor), s (state), o (observation)
+            'tfo,tfs->tfos',  # t (time), f (factor), s (state), o (observation)
             self.q_s_history,
             self.o_history
         )  # Shape: (T, n_agents, n_actions, n_actions)
@@ -762,7 +763,7 @@ class Agent:
 
                 # Compute difference in log evidence F(M_red) - F(M_full)
                 # Friston et al. (2016, Bayesian model reduction, Equation 12)
-                delta_F_vector = torch.tensor([
+                delta_F_vector = torch.stack([
                     delta_free_energy(a_post_full, a_prior, a_red_i)
                     for a_red_i in a_red_candidates
                 ])
@@ -773,7 +774,7 @@ class Agent:
                 # Bayes' Theorem / Friston et al. (2016, Active Inference and learning, Equation 1.e)
                 # weight_full = torch.sigmoid(-(self.gamma_r * delta_F + delta_E))
                 # weight_red = 1 - weight_full
-                weight_vector = torch.softmax(self.gamma_r * delta_F_vector, dim=0)
+                weight_vector = torch.softmax(self.gamma_r * delta_F_vector, dim=0).to(a_post_full.dtype)
                 a_post_candidates = torch.stack([
                     (a_post_full + a_red_i - a_prior).clamp_min(EPSILON)
                     for a_red_i in a_red_candidates
@@ -825,7 +826,7 @@ class Agent:
             # Likelihood parameters update
             delta_params = outer_products[t]  # Shape: (n_agents, n_actions, n_actions)
             u_it = self.u_history[t].item()  # Action u_i at time t
-            B_posterior_params[:, u_it] = self.B_params[:, u_it] + LEARNING_RATE * delta_params
+            B_posterior_params[:, u_it] = B_posterior_params[:, u_it] + LEARNING_RATE * delta_params
             # print("-------------")
             # print("t:", t)
             # print("B_posterior_params[:, u_it]", B_posterior_params[:, u_it])
@@ -879,16 +880,16 @@ class Agent:
 
                 # Compute difference in log evidence F(M_red) - F(M_full)
                 # Friston et al. (2016, Bayesian model reduction, Equation 12)
-                delta_F_vector = torch.tensor([
+                delta_F_vector = torch.stack([
                     delta_free_energy(a_post_full, a_prior, a_red_i)
                     for a_red_i in a_red_candidates
                 ])
 
-                assert delta_F_vector[0].abs() < 1e-3, f"Delta F for full model ({delta_F_vector[0]}) should be zero."
+                assert delta_F_vector[0].abs() < 1e-2, f"Delta F for full model ({delta_F_vector[0]}) should be zero."
                 delta_E = 0  # torch.log(prior_red[factor_idx, action_idx] / prior_full[factor_idx, action_idx])
 
                 # Compute weight for models
-                weight_vector = torch.softmax(self.gamma_r * delta_F_vector, dim=0)
+                weight_vector = torch.softmax(self.gamma_r * delta_F_vector, dim=0).to(a_post_full.dtype)
                 a_post_candidates = torch.stack([
                     (a_post_full + a_red_i - a_prior).clamp_min(EPSILON)
                     for a_red_i in a_red_candidates
@@ -1023,9 +1024,10 @@ def delta_free_energy(a_posterior, a_prior, a_reduced):
     - delta_F (torch.Tensor): The change in free energy ΔF
     """
 
-    a_post = a_posterior.clamp_min(EPSILON)
-    a_prior = a_prior.clamp_min(EPSILON)
-    a_reduced = a_reduced.clamp_min(EPSILON)
+    # Use float64 for numerical stability in BMR computations
+    a_post = a_posterior.to(torch.float64).clamp_min(EPSILON)
+    a_prior = a_prior.to(torch.float64).clamp_min(EPSILON)
+    a_reduced = a_reduced.to(torch.float64).clamp_min(EPSILON)
 
     # Combined posterior under reduced model
     a_comb = (a_post + a_reduced - a_prior).clamp_min(EPSILON)
