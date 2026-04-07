@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--num-repeats', type=int, default=1)
-    argparser.add_argument('--db-path', type=str, default='full_vs_full_deter.db')
+    argparser.add_argument('--db-path', type=str, default='Grim_Grim.db')
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -106,17 +106,17 @@ if __name__ == '__main__':
         META_AGENT_KWARGS = [
             [
                 dict(
-                    deterministic_actions=True,
-                    beta_1=30,  # Default Rationality
+                    deterministic_actions=True,  # # Allow probabilistic policies
+                    beta_1=20,  # Default Rationality
                     # beta_1=5,  # Encourages exploration over sharp action preferences
                     # interoception=True,
-                    policy_length=1,  # Two-step planning (aligns with diagram)
+                    policy_length=2,  # Two-step planning (aligns with diagram)
                     A_prior=99,  # Perfect observation of actions
                     A_learning=False,
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full",  # "Full TFT Grim Reduce"
+                    B_candidates="Full Grim",  # "Full TFT Grim Reduce"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
@@ -125,9 +125,9 @@ if __name__ == '__main__':
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
                     epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
                 ),
-                # dict(
-                #     strategy="TFT",  # "Cooperator" or "Defector" or "TFT" or "Grim"
-                # )
+                dict(
+                    strategy="Grim",  # "Cooperator" or "Defector" or "TFT" or "Grim"
+                )
             ]
         ]
 

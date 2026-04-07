@@ -265,11 +265,12 @@ if __name__ == '__main__':
     #                "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
 
     # Focus on these 4 types of interactions
-    bmr_methods = ["full_vs_full", "full_vs_full_deter", #"red_vs_red",
-                   "full_vs_TFT", "TFT_vs_TFT", #"all_vs_TFT",
-                   "full_vs_Grim", "Grim_vs_Grim", 
+    bmr_methods = [#"pair_full", "pair_all",  # 2 agents
+                   "full_TFT", "TFT_TFT",  # TFT agent vs dummy
+                   "full_Grim", "Grim_Grim",  # Grim agent vs dummy
+                   #"canonical_TFT", "canonical_Grim",  # canonical agent vs dummy
+                   "all_TFT", "all_Grim",  # all candidates (with BMR) agent vs dummy
                    ]
-    #bmr_methods = ["full_vs_full", "full_vs_TFT", "TFT_vs_TFT"]
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
     argparser = argparse.ArgumentParser()

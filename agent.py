@@ -104,7 +104,7 @@ class Agent:
 
         # Generative model parameters ------------------------------------------
 
-        # A matrix encodes the likelihood: A[s,o]=P(o∣s).
+        # A matrix (n_agents, n_actions, n_actions) encodes (factors, observations, states)
         # The probability of observing o given that the true hidden state is s.
         # Is used to create a default prior where each agent strongly expects observation o when in state s = o
         if isinstance(A_prior, torch.Tensor):
@@ -156,7 +156,7 @@ class Agent:
 
         # E is the prior over policies, i.e., habits or learned tendencies.
         # If not set, it's initialized as uniform over all possible action sequences of length policy_length.
-        self.E = torch.ones(num_actions ** policy_length) / num_actions if E_prior is None else E_prior  # Habits
+        self.E = torch.ones(num_actions ** policy_length) / (num_actions ** policy_length) if E_prior is None else E_prior  # Habits
 
         # Learning parameters --------------------------------------------------
         # Precision: How confident agent is about its beliefs and how strongly it updates them with new observations.
@@ -809,6 +809,7 @@ class Agent:
         # Shift arrays for prev and next
         s_prev = self.q_s_history[:-1]  # Shape: (T-1, n_agents, n_actions)
         s_next = self.q_s_history[1:]  # Shape: (T-1, n_agents, n_actions)
+        u_seq = self.u_history[1:]   # aligns with transitions q_s[t] -> q_s[t+1]
 
         outer_products = torch.einsum(  # Compute outer products
             'tfn,tfk->tfnk',  # t (time), f (factor), n (next), k (kurrent)
@@ -825,7 +826,8 @@ class Agent:
         for t in range(outer_products.shape[0]):
             # Likelihood parameters update
             delta_params = outer_products[t]  # Shape: (n_agents, n_actions, n_actions)
-            u_it = self.u_history[t].item()  # Action u_i at time t
+            # u_it = self.u_history[t].item()  # Action u_i at time t
+            u_it = u_seq[t].item()
             B_posterior_params[:, u_it] = B_posterior_params[:, u_it] + LEARNING_RATE * delta_params
             # print("-------------")
             # print("t:", t)
