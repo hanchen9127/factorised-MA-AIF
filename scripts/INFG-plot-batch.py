@@ -259,24 +259,18 @@ def plot_all_games_ensemble_for_all_files(args, filenames, base_dir, output_dir)
 
 
 if __name__ == '__main__':
-    # Manage all BMR files here
-    # bmr_methods = ["full_vs_C", "full_vs_D",
-    #                "full_vs_TFT", "TFT_vs_TFT", "all_vs_TFT",
-    #                "full_vs_Grim", "Grim_vs_Grim", "all_vs_Grim"]
-
     # Focus on these 4 types of interactions
-    bmr_methods = [#"pair_full", "pair_all",  # 2 agents
-                   "full_TFT", "TFT_TFT",  # TFT agent vs dummy
-                   "full_Grim", "Grim_Grim",  # Grim agent vs dummy
-                   #"canonical_TFT", "canonical_Grim",  # canonical agent vs dummy
-                   "all_TFT", "all_Grim",  # all candidates (with BMR) agent vs dummy
+    bmr_methods = ["pair_full", "pair_red",                 # A pair of AIF agents
+                   "full_TFT", "TFT_TFT", #"all_TFT",        # full/full+TFT/all agent vs TFT dummy
+                   "full_Grim", "Grim_Grim", #"all_Grim",    # full/full+Grim/all agent vs Grim dummy
                    ]
+
     # Select the focused one for more detailed analysis
     selected_bmr = bmr_methods[-1]
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/claudeFix/{selected_bmr}.db')
+    argparser.add_argument('--db-path', type=str, default=f'BMA-Study/claudeFinal2/{selected_bmr}.db')
     argparser.add_argument('--timestamp', type=str, default='2026')
-    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/claudeFix')
+    argparser.add_argument('--figures-dir', type=str, default=f'MAAIF-Ensembles/claudeFinal2')
     argparser.add_argument('--t-min', type=int, default=None)
     argparser.add_argument('--t-max', type=int, default=None)
     argparser.add_argument('--n-clusters', type=int, default=6)

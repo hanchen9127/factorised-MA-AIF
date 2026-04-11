@@ -142,6 +142,13 @@ def _coerce_q_u_action_history(q_u_history, game_transitions):
             arr = arr.reshape(*arr.shape[:-1], num_actions, -1).sum(axis=-1)
         return arr
 
+    # Multi-seed stored as list of numpy arrays (one per seed)
+    if isinstance(q_u_history, list) and q_u_history and isinstance(q_u_history[0], np.ndarray):
+        arr = np.array(q_u_history, dtype=float)
+        if num_actions is not None and arr.shape[-1] != num_actions:
+            arr = arr.reshape(*arr.shape[:-1], num_actions, -1).sum(axis=-1)
+        return arr
+
     # Multi-seed: list[seed][t][agent]
     if isinstance(q_u_history, list) and q_u_history and isinstance(q_u_history[0], list) and q_u_history[0] and isinstance(q_u_history[0][0], list):
         return np.array([convert_seed(seed) for seed in q_u_history], dtype=float)
