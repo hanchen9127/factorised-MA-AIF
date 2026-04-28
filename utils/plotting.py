@@ -272,7 +272,7 @@ def make_default_config(variables_history, nash_strategy, game_transitions):
         # 'payoff',
         'learn_record',
         'o_pred_record',
-        'A_model_change',
+        # 'A_model_change',
         'B_model_change',
         'delta_F',
         'F_full',
@@ -1678,7 +1678,7 @@ def plot_vfe_ensemble(vfe_history, game_transitions,
     # ax.set_title(f'VFE Ensemble', fontsize=label_font_size)
     ax.set_xlabel('Time step (t)', fontsize=label_font_size)
     ax.set_ylabel('VFE', color='black', fontsize=label_font_size)
-    ax.set_ylim([0 - MARGIN, 100 + MARGIN])
+    ax.set_ylim([0 - MARGIN, 60 + MARGIN])
     if ifLegend:
         ax.legend(loc='right', fontsize=label_font_size)
 
@@ -1772,6 +1772,24 @@ def plot_expected_efe_ensemble(q_u_history, efe_history,
             for t in range(T):
                 for a in range(num_agents):
                     expected_efe[s, t, a] = np.dot(q_u_history[s, t, a], efe_history[s, t, a])
+
+        # Plot all seeds × agents (was missing entirely — caused blank plot for 2 AIF agents)
+        for s in range(num_seeds):
+            ensemble_efe = expected_efe[s].sum(axis=-1)  # sum over agents → scalar per timestep
+            ax.plot(ensemble_efe,
+                    color=EFE_COLOR,
+                    alpha=0.3,
+                    linewidth=LINEWIDTH,
+                    label="Individuals" if s == 0 else None)
+
+        # Mean across seeds
+        mean_efe = expected_efe.sum(axis=-1).mean(axis=0)  # (T,)
+        ax.plot(mean_efe,
+                color=EFE_COLOR,
+                alpha=1.0,
+                linewidth=LINEWIDTH * 2,
+                label="Mean")
+
     except ValueError:
         # Fallback for mixed agent q_u sizes (e.g., policy-length agents + dummy agents)
         num_seeds = len(q_u_history)
@@ -1785,13 +1803,21 @@ def plot_expected_efe_ensemble(q_u_history, efe_history,
                     e = np.array(efe_history[s][t][a], dtype=float)
                     expected_efe[s, t, a] = np.dot(q, e)
 
-        # Plot individual agents' trajectories for this seed
-        for a in range(num_agents):
-            ax.plot(expected_efe[s, :, a],
+        # Plot all seeds (was using stale loop variable `s` = last seed only)
+        for s in range(num_seeds):
+            ensemble_efe = expected_efe[s].sum(axis=-1)
+            ax.plot(ensemble_efe,
                     color=EFE_COLOR,
                     alpha=0.3,
                     linewidth=LINEWIDTH,
-                    label="Individuals" if s == 0 and a == 0 else None)
+                    label="Individuals" if s == 0 else None)
+
+        mean_efe = expected_efe.sum(axis=-1).mean(axis=0)
+        ax.plot(mean_efe,
+                color=EFE_COLOR,
+                alpha=1.0,
+                linewidth=LINEWIDTH * 2,
+                label="Mean")
 
     # ax.set_title(f"Expected EFE Ensemble", fontsize=label_font_size)
     ax.set_xlabel("Time step (t)", fontsize=label_font_size)

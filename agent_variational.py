@@ -103,13 +103,9 @@ class Agent:
 
         self.set_log_C(game_matrix)  # Log preference over observations (payoffs)
 
-        if D_prior is None:
-            uniform_prob = 1.0 / num_actions
-            self.D = torch.stack([torch.full((num_actions,), uniform_prob) for _ in range(num_agents)])
-        else:
-            self.D = D_prior / D_prior.sum(dim=-1, keepdim=True)
-
-        self.q_s = self.D.clone()
+        # theta: Dirichlet variational parameters, carried across timesteps by the optimizer
+        self.theta = [torch.ones(num_actions) for _ in range(num_agents)] if D_prior is None else D_prior
+        self.D = self.q_s = torch.stack([Dirichlet(theta).mean for theta in self.theta])
 
         self.E = torch.ones(num_actions ** policy_length) / (num_actions ** policy_length) if E_prior is None else E_prior  # Habits
 
@@ -239,35 +235,44 @@ class Agent:
             self.q_s[factor_idx] = F.one_hot(
                 torch.tensor(self.u_prev), num_classes=self.num_actions
             ).to(torch.float)
-            self.VFE[factor_idx] = 0 
-            self.entropy[factor_idx] = 0 
-            self.energy[factor_idx] = 0 
-            self.accuracy[factor_idx] = 0 
-            self.complexity[factor_idx] = 0 
+            self.theta[factor_idx] = torch.zeros_like(self.theta[factor_idx])
+            self.VFE[factor_idx] = 0
+            self.entropy[factor_idx] = 0
+            self.energy[factor_idx] = 0
+            self.accuracy[factor_idx] = 0
+            self.complexity[factor_idx] = 0
             factors = range(1, len(self.q_s))
         else:
             factors = range(len(self.q_s))
 
         for factor_idx in factors:
-            s_prev = self.q_s[factor_idx].clone().detach() 
-
+            s_prev = self.q_s[factor_idx].clone().detach()
+            # Prior conditioned on a₁ (u_prev) — ō₂ is causally downstream of a₁ only
             log_prior = torch.log(self.B[factor_idx, self.u_prev] @ s_prev + EPSILON)
-            log_likelihood = torch.log(self.A[factor_idx].T @ o[factor_idx] + EPSILON) 
-            
-            self.q_s[factor_idx] = torch.softmax(log_likelihood + log_prior, dim=-1).detach()
-            q = self.q_s[factor_idx]
-            log_q = torch.log(q + EPSILON)
+            log_likelihood = torch.log(self.A[factor_idx].T @ o[factor_idx] + EPSILON)
 
-            self.VFE[factor_idx] = torch.sum(q * (log_q - log_likelihood - log_prior), dim=-1).detach()
+            variational_params = self.theta[factor_idx].clone().detach().requires_grad_(True)
+            optimizer = torch.optim.Adam([variational_params], lr=self.inference_learning_rate)
 
-            self.entropy[factor_idx] = -torch.sum(q * log_q, dim=-1).detach()
-            self.energy[factor_idx] = -torch.sum(q * (log_prior + log_likelihood), dim=-1).detach()
-            self.accuracy[factor_idx] = torch.sum(q * log_likelihood, dim=-1).detach()
-            self.complexity[factor_idx] = torch.sum(q * (log_q - log_prior), dim=-1).detach()
+            for _ in range(self.inference_num_iterations):
+                optimizer.zero_grad()
+                s_samples = Dirichlet(variational_params).rsample((self.inference_num_samples,))
+                log_s = torch.log(s_samples + EPSILON)
+                VFE = torch.sum(s_samples * (log_s - log_likelihood - log_prior), dim=-1).mean()
+                VFE.backward()
+                optimizer.step()
+                variational_params.data.clamp_(min=1e-3)
+
+            self.q_s[factor_idx] = Dirichlet(variational_params).mean.detach()
+            self.theta[factor_idx] = variational_params.detach()
+            self.VFE[factor_idx] = VFE.detach()
+            self.entropy[factor_idx] = -torch.sum(s_samples * log_s, dim=-1).mean().detach()
+            self.energy[factor_idx] = -torch.sum(s_samples * (log_prior + log_likelihood), dim=-1).mean().detach()
+            self.accuracy[factor_idx] = torch.sum(s_samples * log_likelihood, dim=-1).mean().detach()
+            self.complexity[factor_idx] = torch.sum(s_samples * (log_s - log_prior), dim=-1).mean().detach()
 
         self.q_s_history.append(self.q_s.detach().clone())
         self.o_history.append(o)
-
         return self.q_s
 
     # ==========================================================================
