@@ -4,7 +4,7 @@ INFG-plot-gui.py
 Self-contained GUI for the MA-AIF plotting pipeline.
 
 All data-loading, figure-building, and rendering logic that was previously
-in INFG-plot.py is inlined here.  No external pipeline module is
+in INFG-plot-batch.py is inlined here.  No external pipeline module is
 imported at runtime; only the project's own utility packages (utils.database,
 utils.plotting, generator2) are required.
 
@@ -27,7 +27,15 @@ Layout of this file
 
 Usage
 -----
-    python INFG-plot-gui.py [BMA-Study-root]
+1. Run commandline below to start.
+    ''' 
+    cd scripts
+    python INFG-plot-gui.py <database_directory>
+    
+    ''' 
+2. Hold CTRL to select multiple db files.
+3. Click on checkbox to select various variables.
+4. Press button at the bottom-right corner to generate figures.
 """
 
 from __future__ import annotations
@@ -60,7 +68,7 @@ import generator2 as gen
 import utils.database
 import utils.plotting
 
-utils.plotting.DPI              = 300
+utils.plotting.DPI              = 500
 utils.plotting.SHOW_LEGEND      = False
 utils.plotting.ONLY_LEFT_Y_LABEL = True
 utils.plotting.TIGHT_LAYOUT    = True
@@ -87,7 +95,7 @@ PROGRESS_BG = "#22263a"
 
 FONT_TITLE = ("Georgia",     30, "bold")
 FONT_LABEL = ("Courier New", 10)
-FONT_SMALL = ("Courier New", 9)
+FONT_SMALL = ("Courier New",  9)
 FONT_MONO  = ("Courier New", 10)
 FONT_BTN   = ("Georgia",     15, "bold")
 
@@ -103,15 +111,15 @@ _ROW_H      = 3.2   # inches per db-file row
 DEFAULT_PANELS = [
     {"key": "vfe",           "label": "VFE Ensemble",                    "default": True},
     {"key": "efe",           "label": "Expected EFE Ensemble",            "default": True},
-    {"key": "policy",        "label": "Policy  P(u=c)  Ensemble",         "default": False},
-    {"key": "policy_single", "label": "Policy  P(u=c)  Single Seed",      "default": True},
-    {"key": "state",         "label": "State   P(s′=1)  Ensemble",        "default": False},
-    {"key": "sep_coop",      "label": "Belief Separation — Cooperators",  "default": False},
-    {"key": "sep_def",       "label": "Belief Separation — Defectors",    "default": False},
-    {"key": "delta_f",       "label": "ΔF  Ensemble",                     "default": True},
-    {"key": "weights_i",     "label": "Model Weights  Agent i",           "default": True},
-    {"key": "weights_j",     "label": "Model Weights  Agent j",           "default": False},
-    {"key": "entropy",       "label": "Entropy  Ensemble",                "default": False},
+    {"key": "policy",        "label": "Policy P(u=c) Ensemble",         "default": True},
+    {"key": "policy_single", "label": "Policy P(u=c) Single Seed",      "default": True},
+    {"key": "state",         "label": "State P(s′=1) Ensemble",        "default": False},
+    {"key": "sep_coop",      "label": "Belief Separation - Cooperators",  "default": False},
+    {"key": "sep_def",       "label": "Belief Separation - Defectors",    "default": False},
+    {"key": "delta_f",       "label": "ΔF Ensemble",                     "default": False},
+    {"key": "weights_i",     "label": "Model Weights - Agent i",           "default": True},
+    {"key": "weights_j",     "label": "Model Weights - Agent j",           "default": False},
+    {"key": "entropy",       "label": "Entropy Ensemble",                "default": False},
 ]
 
 
@@ -538,11 +546,29 @@ class ScrollableCheckList(tk.Frame):
 # ===========================================================================
 
 class DbFileTree(tk.Frame):
-    """Treeview of .db files grouped by sub-folder; supports multi-select."""
+    """
+    Treeview of .db files grouped by sub-folder; supports multi-select.
+
+    Selection order
+    ---------------
+    Each click appends to an ordered list so the user can control which
+    file becomes row 1, row 2, … in the output figure.  A circled number
+    badge (① ② ③ …) is shown next to the file name inside the tree.
+    The badge is UI-only and never written to output figures.
+
+    select_all() uses default tree order (no badges shown).
+    deselect_all() / refresh() reset the order completely.
+    """
+
+    # Circled digit glyphs for positions 1-20; fall back to plain "(N)" beyond
+    _BADGES = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩",
+               "⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑳"]
 
     def __init__(self, parent, groups: dict[str, list[str]], **kw):
         super().__init__(parent, bg=SURFACE, **kw)
-        self._path_map: dict[str, str] = {}   # iid → absolute path
+        self._path_map:  dict[str, str]  = {}   # iid → absolute path
+        self._stem_map:  dict[str, str]  = {}   # iid → bare stem text
+        self._order:     list[str]       = []   # iids in click order
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -570,7 +596,12 @@ class DbFileTree(tk.Frame):
         self._tree.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
 
+        # Track every click to maintain selection order
+        self._tree.bind("<<TreeviewSelect>>", self._on_select)
+
         self._populate(groups)
+
+    # ------------------------------------------------------------------
 
     def _populate(self, groups: dict[str, list[str]]):
         for group, paths in sorted(groups.items()):
@@ -579,28 +610,82 @@ class DbFileTree(tk.Frame):
                                         open=True, tags=("group",))
             self._tree.tag_configure("group", foreground=TEXT_DIM)
             for path in sorted(paths):
-                iid = self._tree.insert(parent, "end",
-                                         text=f"   🗄  {Path(path).stem}",
-                                         tags=("file",))
+                stem = Path(path).stem
+                iid  = self._tree.insert(parent, "end",
+                                          text=f"   🗄  {stem}",
+                                          tags=("file",))
                 self._tree.tag_configure("file", foreground=TEXT)
                 self._path_map[iid] = path
+                self._stem_map[iid] = stem
 
-    def get_selected_paths(self) -> list[str]:
-        return [self._path_map[iid]
-                for iid in self._tree.selection()
-                if iid in self._path_map]
+    def _on_select(self, _event):
+        """
+        Called on every <<TreeviewSelect>> event.
+        Reconcile self._order with the current treeview selection:
+          - remove iids that were deselected
+          - append newly selected file iids (preserving first-click order)
+        Then redraw the badges.
+        """
+        current = set(
+            iid for iid in self._tree.selection()
+            if iid in self._path_map)
+
+        # Remove deselected items, preserving order of remaining ones
+        self._order = [iid for iid in self._order if iid in current]
+
+        # Append newly selected items in tree (top-to-bottom) order
+        existing = set(self._order)
+        for iid in self._path_map:          # iterates in insertion order
+            if iid in current and iid not in existing:
+                self._order.append(iid)
+                existing.add(iid)
+
+        self._redraw_badges()
+
+    def _redraw_badges(self):
+        """Update the label text of every file node with its order badge."""
+        # Build a position lookup for selected iids
+        pos = {iid: i for i, iid in enumerate(self._order)}
+        for iid, stem in self._stem_map.items():
+            if iid in pos:
+                n     = pos[iid] + 1          # 1-based
+                badge = (self._BADGES[n - 1]
+                         if n <= len(self._BADGES)
+                         else f"({n})")
+                self._tree.item(iid, text=f"   🗄  {stem}  {badge}")
+            else:
+                self._tree.item(iid, text=f"   🗄  {stem}")
+
+    # ------------------------------------------------------------------
+
+    def get_selected_paths_ordered(self) -> list[str]:
+        """Return paths in the user's click order."""
+        return [self._path_map[iid] for iid in self._order]
+
+    def get_all_paths_default(self) -> list[str]:
+        """Return all file paths in default tree (alphabetical) order."""
+        return [self._path_map[iid] for iid in self._path_map]
 
     def select_all(self):
+        """Select all files in default order; no numbered badges."""
+        self._order.clear()
         for iid in self._path_map:
             self._tree.selection_add(iid)
+        # _on_select fires automatically; clear order again so no badges show
+        self._order.clear()
+        self._redraw_badges()
 
     def deselect_all(self):
+        self._order.clear()
         self._tree.selection_set([])
+        self._redraw_badges()
 
     def refresh(self, groups: dict[str, list[str]]):
+        self._order.clear()
+        self._path_map.clear()
+        self._stem_map.clear()
         for item in self._tree.get_children():
             self._tree.delete(item)
-        self._path_map.clear()
         self._populate(groups)
 
 
@@ -735,7 +820,7 @@ class PlottingGUI(tk.Tk):
         _button(right_hdr, "⟳  Refresh", self._refresh_files,
                 accent=False).pack(side="right", padx=4)
 
-        # ── bottom bar ────────────────────────────────────────────────
+        # ── bottom bar — packed before body so expand=True never hides it ──
         bottom = tk.Frame(self, bg=SURFACE, height=58)
         bottom.pack(fill="x", side="bottom")
         bottom.pack_propagate(False)
@@ -747,7 +832,7 @@ class PlottingGUI(tk.Tk):
                side="left", padx=18, pady=18)
 
         self._run_btn = _button(
-            bottom, "  Generate Plots!", self._on_run, accent=True)
+            bottom, "  Generate Plots  →", self._on_run, accent=True)
         self._run_btn.pack(side="right", padx=18, pady=10)
 
         # ── three-column body ─────────────────────────────────────────
@@ -872,7 +957,13 @@ class PlottingGUI(tk.Tk):
         if self._running:
             return
 
-        selected_files  = self._file_tree.get_selected_paths()
+        # get_selected_paths_ordered() returns [] when select_all() was used
+        # (it clears _order so no badges are shown).
+        # In that case fall back to all files in default alphabetical order.
+        ordered = self._file_tree.get_selected_paths_ordered()
+        selected_files = ordered if ordered \
+            else self._file_tree.get_all_paths_default()
+
         selected_panels = self._checklist.get_selected()
 
         if not selected_files:

@@ -1,5 +1,5 @@
 '''
-Factorised Active Inference Agent
+Factorised Active Inference Agent with exact posterior
 
 Authors: Jaime Ruiz Serra, Patrick Sweeney, Mike Harré
 Date: 2024-07
