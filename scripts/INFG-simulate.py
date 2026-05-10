@@ -29,8 +29,8 @@ import os
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--num-repeats', type=int, default=1)
-    argparser.add_argument('--db-path', type=str, default='ext-pair_red.db')
+    argparser.add_argument('--num-repeats', type=int, default=8)
+    argparser.add_argument('--db-path', type=str, default='var-TFT_TFT.db')
     args = argparser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -117,7 +117,7 @@ if __name__ == '__main__':
                     B_prior=0,
                     B_learning=True,
                     B_BMR="epsilon",  # Bayesian Model Reduction. One of ['epsilon', 'softmax', None]
-                    B_candidates="Full Reduce",  # "Full TFT Grim Reduce"
+                    B_candidates="Full TFT",  # "Full TFT Grim Reduce"
                     B_learning_rate=1,  # Update heavily reflect observed data
                     alpha_r=0.5,
                     gamma_r=1.0,
@@ -126,9 +126,9 @@ if __name__ == '__main__':
                     # E_prior=torch.tensor([0.3, 0.7])  # Behaviour prior more likely to defect
                     epistemic_gain=1,  # A multiplier that encourages exploration of AIF agent
                 ),
-                # dict(
-                #     strategy="TFT",  # "Cooperator" or "Defector" or "TFT" or "Grim"
-                # )
+                dict(
+                    strategy="TFT",  # "Cooperator" or "Defector" or "TFT" or "Grim"
+                )
             ]
         ]
 

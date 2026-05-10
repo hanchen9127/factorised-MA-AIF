@@ -4,7 +4,7 @@ INFG-plot-gui.py
 Self-contained GUI for the MA-AIF plotting pipeline.
 
 All data-loading, figure-building, and rendering logic that was previously
-in INFG-plot-batch.py is inlined here.  No external pipeline module is
+in INFG-plot-refined.py is inlined here.  No external pipeline module is
 imported at runtime; only the project's own utility packages (utils.database,
 utils.plotting, generator2) are required.
 
@@ -37,7 +37,6 @@ Usage
 3. Click on checkbox to select various variables.
 4. Press button at the bottom-right corner to generate figures.
 """
-
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
@@ -92,12 +91,13 @@ TEXT_DIM    = "#7a8099"
 DANGER      = "#ff6b6b"
 SUCCESS     = "#38d9a9"
 PROGRESS_BG = "#22263a"
+PRECISION_COLOR = "#000000"
 
-FONT_TITLE = ("Georgia",     30, "bold")
+FONT_TITLE = ("Georgia",     20, "bold")
 FONT_LABEL = ("Courier New", 10)
 FONT_SMALL = ("Courier New",  9)
 FONT_MONO  = ("Courier New", 10)
-FONT_BTN   = ("Georgia",     15, "bold")
+FONT_BTN   = ("Georgia",     11, "bold")
 
 _DPI_RENDER = 500   # DPI for saved figures
 _COL_W      = 5.0   # inches per game-sequence column
@@ -111,15 +111,16 @@ _ROW_H      = 3.2   # inches per db-file row
 DEFAULT_PANELS = [
     {"key": "vfe",           "label": "VFE Ensemble",                    "default": True},
     {"key": "efe",           "label": "Expected EFE Ensemble",            "default": True},
-    {"key": "policy",        "label": "Policy P(u=c) Ensemble",         "default": True},
-    {"key": "policy_single", "label": "Policy P(u=c) Single Seed",      "default": True},
-    {"key": "state",         "label": "State P(s′=1) Ensemble",        "default": False},
-    {"key": "sep_coop",      "label": "Belief Separation - Cooperators",  "default": False},
-    {"key": "sep_def",       "label": "Belief Separation - Defectors",    "default": False},
-    {"key": "delta_f",       "label": "ΔF Ensemble",                     "default": False},
-    {"key": "weights_i",     "label": "Model Weights - Agent i",           "default": True},
-    {"key": "weights_j",     "label": "Model Weights - Agent j",           "default": False},
-    {"key": "entropy",       "label": "Entropy Ensemble",                "default": False},
+    {"key": "policy",        "label": "Policy  P(u=c)  Ensemble",         "default": True},
+    {"key": "policy_single", "label": "Policy  P(u=c)  Single Seed",      "default": True},
+    {"key": "state",         "label": "State   P(s′=1)  Ensemble",        "default": False},
+    {"key": "sep_coop",      "label": "Belief Separation — Cooperators",  "default": False},
+    {"key": "sep_def",       "label": "Belief Separation — Defectors",    "default": False},
+    {"key": "delta_f",       "label": "ΔF  Ensemble",                     "default": False},
+    {"key": "weights_i",     "label": "Model Weights  Agent i",           "default": True},
+    {"key": "weights_j",     "label": "Model Weights  Agent j",           "default": False},
+    {"key": "entropy",       "label": "Entropy  Ensemble",                "default": False},
+    {"key": "gamma",         "label": "Precision γ  Ensemble",            "default": False},
 ]
 
 
@@ -145,6 +146,7 @@ class ExperimentData:
     all_q_s:           list = field(default_factory=list)
     all_delta_F:       list = field(default_factory=list)
     all_entropy:       list = field(default_factory=list)
+    all_gamma:         list = field(default_factory=list)
     all_candidates:    list = field(default_factory=list)
     all_model_weights: list = field(default_factory=list)
     experiments:       Any  = None   # raw DataFrame, for heatmaps/anim/ts
@@ -222,6 +224,7 @@ def _unpack_seed(loaded_vars: dict) -> dict:
         "q_s":             loaded_vars["q_s"],
         "delta_F":         loaded_vars["delta_F"],
         "entropy":         loaded_vars["entropy"],
+        "gamma":           loaded_vars["gamma"],
         "B_candidates":    loaded_vars["B_candidates"],
         "B_model_weights": loaded_vars["B_model_weights"],
     }
@@ -269,6 +272,7 @@ def load_experiment(db_path: str, timestamp: str) -> ExperimentData | None:
         data.all_q_s.append(u["q_s"])
         data.all_delta_F.append(u["delta_F"])
         data.all_entropy.append(u["entropy"])
+        data.all_gamma.append(u["gamma"])
         data.all_candidates.append(u["B_candidates"])
         data.all_model_weights.append(u["B_model_weights"])
 
@@ -380,6 +384,54 @@ def plot_B_heatmaps(data: ExperimentData, consistency: dict,
 
 
 # ===========================================================================
+# Section 6b — Gamma (precision) ensemble plot
+# ===========================================================================
+
+def plot_gamma_ensemble(all_gamma: list, game_transitions: list,
+                        ifLegend: bool = True, ax=None):
+    """
+    Ensemble precision plot.
+
+    all_gamma : list of per-seed gamma histories.
+                Each entry has shape (T, num_agents) — a 2-D array where
+                column i is agent i's γ at each timestep.
+    Plots one faint line per seed per agent, plus a bold per-agent mean.
+    """
+    if ax is None:
+        _, ax = plt.subplots()
+
+    try:
+        gamma_arr = np.array(all_gamma)   # (num_seeds, T, num_agents)
+    except ValueError:
+        # Ragged shapes — stack manually
+        gamma_arr = np.stack(
+            [np.array(g) for g in all_gamma], axis=0)
+
+    num_seeds, T, num_agents = gamma_arr.shape
+    agent_colors = [PRECISION_COLOR, "#888888",
+                    "#4477aa", "#cc6677"][:num_agents]
+
+    for agent_idx in range(num_agents):
+        color = agent_colors[agent_idx]
+        label_stem = f"Agent {chr(105 + agent_idx)}"
+        for s in range(num_seeds):
+            ax.plot(gamma_arr[s, :, agent_idx],
+                    color=color, alpha=0.15,
+                    linewidth=utils.plotting.LINEWIDTH)
+        mean_gamma = gamma_arr[:, :, agent_idx].mean(axis=0)
+        ax.plot(mean_gamma,
+                color=color, alpha=1.0,
+                linewidth=utils.plotting.LINEWIDTH * 2,
+                label=f"{label_stem} mean")
+
+    ax.set_xlabel("Time step (t)", fontsize=utils.plotting.label_font_size)
+    ax.set_ylabel("Precision γ",   fontsize=utils.plotting.label_font_size)
+    if ifLegend:
+        ax.legend(loc="upper right",
+                  fontsize=utils.plotting.label_font_size)
+
+
+# ===========================================================================
 # Section 7 — Panel-spec dispatch
 # ===========================================================================
 
@@ -417,6 +469,8 @@ def panel_spec(panel_key: str,
                       (data.all_model_weights, data.all_candidates, 1, True)),
         "entropy": (utils.plotting.plot_entropy_ensemble,
                     (data.all_entropy, True)),
+        "gamma":   (plot_gamma_ensemble,
+                    (data.all_gamma, gt, True)),
     }
     return specs.get(panel_key)
 
@@ -935,6 +989,29 @@ class PlottingGUI(tk.Tk):
                     accent=False,
                 ).pack(side="left", padx=(4, 0))
 
+        # ── x-range: start / end time ─────────────────────────────────
+        _separator(parent).pack(fill="x", padx=14, pady=(8, 0))
+
+        xrange_label = tk.Frame(parent, bg=SURFACE)
+        xrange_label.pack(fill="x", padx=14, pady=(6, 2))
+        _label(xrange_label, "X-axis range  (blank = full)",
+               font=FONT_SMALL, fg=TEXT_DIM, bg=SURFACE).pack(side="left")
+
+        xrange_row = tk.Frame(parent, bg=SURFACE)
+        xrange_row.pack(fill="x", padx=14, pady=(0, 8))
+
+        _label(xrange_row, "Start t", font=FONT_SMALL,
+               fg=TEXT_DIM, bg=SURFACE, width=8, anchor="w").pack(side="left")
+        self._settings["t_start"] = tk.StringVar(value="")
+        _entry(xrange_row, self._settings["t_start"],
+               width=7).pack(side="left", padx=(0, 12))
+
+        _label(xrange_row, "End t", font=FONT_SMALL,
+               fg=TEXT_DIM, bg=SURFACE, width=6, anchor="w").pack(side="left")
+        self._settings["t_end"] = tk.StringVar(value="")
+        _entry(xrange_row, self._settings["t_end"],
+               width=7).pack(side="left")
+
     # ------------------------------------------------------------------
     # Event handlers
     # ------------------------------------------------------------------
@@ -977,6 +1054,33 @@ class PlottingGUI(tk.Tk):
                 "Please select at least one plot panel.")
             return
 
+        # Parse optional x-range — validate that values are non-negative
+        # integers and that start < end when both are given.
+        def _parse_t(key: str) -> int | None:
+            raw = self._settings[key].get().strip()
+            if not raw:
+                return None
+            try:
+                v = int(raw)
+                if v < 0:
+                    raise ValueError
+                return v
+            except ValueError:
+                messagebox.showerror(
+                    "Invalid time range",
+                    f"'{raw}' is not a valid non-negative integer for {key}.")
+                return -1   # sentinel: abort
+
+        t_start = _parse_t("t_start")
+        t_end   = _parse_t("t_end")
+        if t_start == -1 or t_end == -1:
+            return
+        if t_start is not None and t_end is not None and t_start >= t_end:
+            messagebox.showerror(
+                "Invalid time range",
+                f"Start t ({t_start}) must be less than End t ({t_end}).")
+            return
+
         self._running = True
         self._run_btn.config(state="disabled", bg=SURFACE2)
         self._status_var.set("Running pipeline…")
@@ -985,7 +1089,8 @@ class PlottingGUI(tk.Tk):
             target=self._run_pipeline,
             args=(selected_files, selected_panels,
                   self._settings["timestamp"].get(),
-                  self._settings["figures_dir"].get()),
+                  self._settings["figures_dir"].get(),
+                  t_start, t_end),
             daemon=True,
         ).start()
 
@@ -994,7 +1099,9 @@ class PlottingGUI(tk.Tk):
     # ------------------------------------------------------------------
 
     def _run_pipeline(self, db_paths: list[str], panels: list[str],
-                      timestamp: str, figures_dir: str):
+                      timestamp: str, figures_dir: str,
+                      t_start: int | None = None,
+                      t_end:   int | None = None):
         """
         Output layout
         -------------
@@ -1002,6 +1109,9 @@ class PlottingGUI(tk.Tk):
             <panel_key>.png   one figure per selected panel
                 rows  = selected .db files
                 cols  = game-transition sequences in that file
+
+        t_start / t_end : optional x-axis display window applied after
+                          plotting. None means use the full range.
 
         Progress: n_files load steps  +  n_panels render steps.
         """
@@ -1057,7 +1167,8 @@ class PlottingGUI(tk.Tk):
                             f"Rendering  {panel_label}…", "dim")
                 try:
                     self._render_stacked(
-                        loaded, panel_key, panel_label, out_dir)
+                        loaded, panel_key, panel_label, out_dir,
+                        t_start, t_end)
                     self.after(0, self._progress.log,
                                f"  ✓  {panel_label}", "ok")
                 except Exception as exc:
@@ -1086,15 +1197,35 @@ class PlottingGUI(tk.Tk):
                         loaded: list[tuple[str, list[ExperimentData]]],
                         panel_key: str,
                         panel_label: str,
-                        out_dir: str):
+                        out_dir: str,
+                        t_start: int | None = None,
+                        t_end:   int | None = None):
         """
         Build and save one output figure.
 
-        Grid:   rows = .db files  ×  cols = game-transition sequences.
+        Grid: rows = .db files x cols = game-transition sequences.
+
+        t_start / t_end : optional absolute x-axis window [t_start, t_end]
+                          applied after plotting. Full data is still plotted,
+                          then view is clipped to avoid ragged slicing issues.
         """
         import matplotlib.pyplot as plt
 
-        # ── standard grid figure ──────────────────────────────────────
+        def _apply_time_window(ax: plt.Axes) -> None:
+            if t_start is None and t_end is None:
+                return
+
+            x_lo, x_hi = ax.get_xlim()
+            left = x_lo if t_start is None else max(float(t_start), x_lo)
+            right = x_hi if t_end is None else min(float(t_end), x_hi)
+
+            if right <= left:
+                right = left + 1.0
+
+            ax.set_xlim(left, right)
+
+        show_game_transitions = (t_start is None and t_end is None)
+
         n_rows = len(loaded)
         n_cols = max(len(dl) for _, dl in loaded)
 
@@ -1125,20 +1256,21 @@ class PlottingGUI(tk.Tk):
 
                 _style_ax(ax)
 
-                try:
-                    utils.plotting.highlight_transitions(
-                        data.game_transitions, ax)
-                except Exception:
-                    pass
+                if show_game_transitions:
+                    try:
+                        utils.plotting.highlight_transitions(
+                            data.game_transitions, ax)
+                    except Exception:
+                        pass
 
-                # Column header: game-sequence label (top row only)
-                if row_idx == 0:
+                _apply_time_window(ax)
+
+                if row_idx == 0 and show_game_transitions:
                     ax.set_title(
                         "-".join(g[0].split("_")[-1]
                                  for g in data.game_transitions),
                         fontsize=10, pad=5)
 
-                # Row label: db file stem (left column only)
                 if col_idx == 0:
                     ax.set_ylabel(
                         f"{stem}\n{ax.get_ylabel()}",
@@ -1146,13 +1278,21 @@ class PlottingGUI(tk.Tk):
                 else:
                     ax.set_ylabel(None)
 
-                # Suppress x-label except on the bottom row
                 if row_idx < n_rows - 1:
                     ax.set_xlabel(None)
 
-        fig.suptitle(panel_label, fontsize=13, y=1.01)
+        range_str = ""
+        if t_start is not None or t_end is not None:
+            lo = t_start if t_start is not None else 0
+            hi = t_end if t_end is not None else "end"
+            range_str = f"  [t={lo}-{hi}]"
+
+        fig.suptitle(f"{panel_label}{range_str}", fontsize=13, y=1.01)
         plt.tight_layout(rect=[0, 0, 1, 0.98])
-        save_figure(fig, os.path.join(out_dir, f"{panel_key}.png"))
+
+        suffix = (f"_t{t_start}-{t_end}"
+                  if (t_start is not None or t_end is not None) else "")
+        save_figure(fig, os.path.join(out_dir, f"{panel_key}{suffix}.png"))
 
 
 # ===========================================================================
