@@ -29,7 +29,7 @@ import os
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--num-repeats', type=int, default=8)
+    argparser.add_argument('--num-repeats', type=int, default=1)
     argparser.add_argument('--db-path', type=str, default='var-TFT_TFT.db')
     args = argparser.parse_args()
 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
                                      game_form="2x2",
                                      game_ids=["1_2_2_Chicken", "1_1_1_Prisoners", "1_2_2_Chicken"],
                                      game_to_change=[],
-                                     num_steps=[800, 400, 800],
+                                     num_steps=[400, 200, 400],
                                      num_changes=0),
         # generate_dynamic_transitions(dict_games=GAMES,
         #                              game_form="2x2",
@@ -63,7 +63,7 @@ if __name__ == '__main__':
                                      game_form="2x2",
                                      game_ids=["3_2_2_StagHunt", "1_1_1_Prisoners", "3_2_2_StagHunt"],
                                      game_to_change=[],
-                                     num_steps=[800, 400, 800],
+                                     num_steps=[400, 200, 400],
                                      num_changes=0),
         # generate_dynamic_transitions(dict_games=GAMES,
         #                              game_form="2x2",
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                                      game_form="2x2",
                                      game_ids=["1_2_2_Chicken", "3_2_2_StagHunt"],
                                      game_to_change=[],
-                                     num_steps=[1000, 2000],
+                                     num_steps=[400, 600],
                                      num_changes=0),
 
         # generate_dynamic_transitions(dict_games=GAMES,

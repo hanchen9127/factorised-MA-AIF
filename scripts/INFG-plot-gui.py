@@ -121,6 +121,7 @@ DEFAULT_PANELS = [
     {"key": "weights_j",     "label": "Model Weights  Agent j",           "default": False},
     {"key": "entropy",       "label": "Entropy  Ensemble",                "default": False},
     {"key": "gamma",         "label": "Precision γ  Ensemble",            "default": False},
+    {"key": "actions",       "label": "Action Realisations  (single seed)", "default": False},
 ]
 
 
@@ -147,6 +148,7 @@ class ExperimentData:
     all_delta_F:       list = field(default_factory=list)
     all_entropy:       list = field(default_factory=list)
     all_gamma:         list = field(default_factory=list)
+    all_u:             list = field(default_factory=list)
     all_candidates:    list = field(default_factory=list)
     all_model_weights: list = field(default_factory=list)
     experiments:       Any  = None   # raw DataFrame, for heatmaps/anim/ts
@@ -225,6 +227,7 @@ def _unpack_seed(loaded_vars: dict) -> dict:
         "delta_F":         loaded_vars["delta_F"],
         "entropy":         loaded_vars["entropy"],
         "gamma":           loaded_vars["gamma"],
+        "u":               loaded_vars["u"],
         "B_candidates":    loaded_vars["B_candidates"],
         "B_model_weights": loaded_vars["B_model_weights"],
     }
@@ -273,6 +276,7 @@ def load_experiment(db_path: str, timestamp: str) -> ExperimentData | None:
         data.all_delta_F.append(u["delta_F"])
         data.all_entropy.append(u["entropy"])
         data.all_gamma.append(u["gamma"])
+        data.all_u.append(u["u"])
         data.all_candidates.append(u["B_candidates"])
         data.all_model_weights.append(u["B_model_weights"])
 
@@ -384,51 +388,19 @@ def plot_B_heatmaps(data: ExperimentData, consistency: dict,
 
 
 # ===========================================================================
-# Section 6b — Gamma (precision) ensemble plot
+# Section 6b — Gamma (precision) ensemble plot  [moved to utils/plotting.py]
 # ===========================================================================
+# Canonical implementation lives in utils.plotting.plot_gamma_ensemble.
+# panel_spec references it there directly; no local definition needed.
 
-def plot_gamma_ensemble(all_gamma: list, game_transitions: list,
-                        ifLegend: bool = True, ax=None):
-    """
-    Ensemble precision plot.
 
-    all_gamma : list of per-seed gamma histories.
-                Each entry has shape (T, num_agents) — a 2-D array where
-                column i is agent i's γ at each timestep.
-    Plots one faint line per seed per agent, plus a bold per-agent mean.
-    """
-    if ax is None:
-        _, ax = plt.subplots()
-
-    try:
-        gamma_arr = np.array(all_gamma)   # (num_seeds, T, num_agents)
-    except ValueError:
-        # Ragged shapes — stack manually
-        gamma_arr = np.stack(
-            [np.array(g) for g in all_gamma], axis=0)
-
-    num_seeds, T, num_agents = gamma_arr.shape
-    agent_colors = [PRECISION_COLOR, "#888888",
-                    "#4477aa", "#cc6677"][:num_agents]
-
-    for agent_idx in range(num_agents):
-        color = agent_colors[agent_idx]
-        label_stem = f"Agent {chr(105 + agent_idx)}"
-        for s in range(num_seeds):
-            ax.plot(gamma_arr[s, :, agent_idx],
-                    color=color, alpha=0.15,
-                    linewidth=utils.plotting.LINEWIDTH)
-        mean_gamma = gamma_arr[:, :, agent_idx].mean(axis=0)
-        ax.plot(mean_gamma,
-                color=color, alpha=1.0,
-                linewidth=utils.plotting.LINEWIDTH * 2,
-                label=f"{label_stem} mean")
-
-    ax.set_xlabel("Time step (t)", fontsize=utils.plotting.label_font_size)
-    ax.set_ylabel("Precision γ",   fontsize=utils.plotting.label_font_size)
-    if ifLegend:
-        ax.legend(loc="upper right",
-                  fontsize=utils.plotting.label_font_size)
+# ===========================================================================
+# Section 6c — Action realisation (single-seed) plot  [moved to utils/plotting.py]
+# ===========================================================================
+# Canonical implementations live in utils.plotting:
+#   utils.plotting._coerce_u_history
+#   utils.plotting.plot_actions_single
+# panel_spec references them there directly; no local definitions needed.
 
 
 # ===========================================================================
@@ -469,8 +441,10 @@ def panel_spec(panel_key: str,
                       (data.all_model_weights, data.all_candidates, 1, True)),
         "entropy": (utils.plotting.plot_entropy_ensemble,
                     (data.all_entropy, True)),
-        "gamma":   (plot_gamma_ensemble,
+        "gamma":   (utils.plotting.plot_gamma_ensemble,
                     (data.all_gamma, gt, True)),
+        "actions": (utils.plotting.plot_actions_single,
+                    (data.all_u, data.all_q_u, gt, True)),
     }
     return specs.get(panel_key)
 

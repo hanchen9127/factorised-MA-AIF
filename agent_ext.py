@@ -11,7 +11,6 @@ Date: 2026-04
 import torch
 import random
 import torch.nn.functional as F
-from torch.distributions.dirichlet import Dirichlet
 from typing import Union
 
 # import os
@@ -460,7 +459,6 @@ class Agent:
         self.expected_EFE = torch.dot(q_u, EFE).item()
         denom = max(self.beta_0 - self.expected_EFE, 1e-6)
         self.gamma = self.beta_1 / denom
-        print(self.gamma)
         return self.gamma
 
     # ==========================================================================
